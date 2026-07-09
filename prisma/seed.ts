@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
 // RCC-HIROS — Comprehensive Seed
 // Creates groups, roles, employees, leave types/balances/requests,
-// evaluation form/criteria/period/evaluation, attendance, premises.
+// evaluation forms/criteria/periods/evaluations, attendance,
+// employee certificates, system settings, and audit logs.
 // ═══════════════════════════════════════════════════════════════
 
 import { PrismaClient, type EvaluationCriterion } from "../src/generated/prisma/client";
@@ -196,6 +197,21 @@ async function upsertRole(
   return role;
 }
 
+/** Build a Date relative to today for realistic demo data. */
+function daysFromNow(days: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Build a Date with specific time on a day relative to today. */
+function dayTime(daysFromNowVal: number, hours: number, minutes = 0): Date {
+  const d = daysFromNow(daysFromNowVal);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
 // ───────────────────────────────────────────────────────────────
 // Main
 // ───────────────────────────────────────────────────────────────
@@ -203,9 +219,9 @@ async function upsertRole(
 async function main() {
   console.log("🌱 Seeding RCC-HIROS database...");
 
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   // 1. Groups
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating groups...");
   const accounting = await prisma.group.upsert({
     where: { code: "ACCT" },
@@ -238,9 +254,9 @@ async function main() {
     },
   });
 
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   // 2. Roles
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating roles...");
   const systemAdmin = await upsertRole(
     "System Admin",
@@ -332,11 +348,25 @@ async function main() {
     PROFESSOR_PERMS
   );
 
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   // 3. Employees (password = RCC2026!)
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating employees (password: RCC2026!)...");
   const passwordHash = await hash(DEFAULT_PASSWORD, 10);
+
+  // Clear any employees beyond the 6 base accounts (for clean re-seed)
+  await prisma.employee.deleteMany({
+    where: {
+      NOT: [
+        { employeeId: "EMP-0000" },
+        { employeeId: "EMP-0001" },
+        { employeeId: "EMP-0002" },
+        { employeeId: "EMP-0003" },
+        { employeeId: "EMP-0004" },
+        { employeeId: "EMP-0005" },
+      ],
+    },
+  });
 
   const employees = [
     {
@@ -411,6 +441,42 @@ async function main() {
       roleId: professor.id,
       contractType: "Regular",
     },
+    {
+      employeeId: "EMP-0006",
+      firstName: "Maria",
+      lastName: "Santos",
+      middleName: "L.",
+      email: "maria.santos@rcc.edu.ph",
+      phone: "+63 917 000 0006",
+      gender: "Female",
+      groupId: ccs.id,
+      roleId: professor.id,
+      contractType: "Regular",
+    },
+    {
+      employeeId: "EMP-0007",
+      firstName: "John",
+      lastName: "Dela Cruz",
+      middleName: null,
+      email: "john.delacruz@rcc.edu.ph",
+      phone: "+63 917 000 0007",
+      gender: "Male",
+      groupId: hr.id,
+      roleId: hrPersonnel.id,
+      contractType: "Regular",
+    },
+    {
+      employeeId: "EMP-0008",
+      firstName: "Ana",
+      lastName: "Gonzales",
+      middleName: "R.",
+      email: "ana.gonzales@rcc.edu.ph",
+      phone: "+63 917 000 0008",
+      gender: "Female",
+      groupId: accounting.id,
+      roleId: accountant.id,
+      contractType: "Regular",
+    },
   ];
 
   const createdEmployees: Record<string, string> = {}; // employeeId -> db id
@@ -451,9 +517,9 @@ async function main() {
     createdEmployees[emp.employeeId] = created.id;
   }
 
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   // 4. Leave types
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating leave types...");
   const sickLeave = await prisma.leaveType.upsert({
     where: { code: "SL" },
@@ -472,74 +538,99 @@ async function main() {
   });
   const leaveTypes = [sickLeave, vacationLeave, emergencyLeave];
 
-  // ─────────────────────────────────────────────────────────────
-  // 5. Leave balances — all 6 employees × 3 types × 2026
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
+  // 5. Leave balances — all 9 employees × 3 types × 2026
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating leave balances...");
+  await prisma.leaveBalance.deleteMany({});
+
+  const leaveUsedDays: Record<string, Record<string, number>> = {
+    // employeeId -> { leaveTypeCode -> usedDays }
+    "EMP-0001": { SL: 2, VL: 3, EL: 0 },
+    "EMP-0002": { SL: 0, VL: 2, EL: 1 },
+    "EMP-0003": { SL: 1, VL: 5, EL: 0 },
+    "EMP-0004": { SL: 0, VL: 1, EL: 0 },
+    "EMP-0005": { SL: 4, VL: 5, EL: 1 },
+    "EMP-0006": { SL: 1, VL: 0, EL: 0 },
+    "EMP-0007": { SL: 0, VL: 2, EL: 1 },
+    "EMP-0008": { SL: 2, VL: 0, EL: 0 },
+  };
+
   for (const emp of employees) {
     for (const lt of leaveTypes) {
-      await prisma.leaveBalance.upsert({
-        where: {
-          employeeId_leaveTypeId_year: {
-            employeeId: createdEmployees[emp.employeeId],
-            leaveTypeId: lt.id,
-            year: YEAR,
-          },
-        },
-        update: { totalDays: lt.defaultDays, usedDays: 0 },
-        create: {
+      const used = leaveUsedDays[emp.employeeId]?.[lt.code] ?? 0;
+      await prisma.leaveBalance.create({
+        data: {
           employeeId: createdEmployees[emp.employeeId],
           leaveTypeId: lt.id,
           year: YEAR,
           totalDays: lt.defaultDays,
-          usedDays: 0,
+          usedDays: used,
         },
       });
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // 6. Sample leave requests — 4 different states
-  // ─────────────────────────────────────────────────────────────
-  console.log("• Creating sample leave requests...");
-  const profId = createdEmployees["EMP-0005"]; // Darwin
-  const deanId = createdEmployees["EMP-0003"]; // Neil
-  const hrId = createdEmployees["EMP-0001"]; // Jeremiah
-
-  // Delete existing sample requests (best-effort) to avoid unique constraint on requestNo
-  await prisma.leaveRequest.deleteMany({});
+  // ═════════════════════════════════════════════════════════════
+  // 6. Leave requests — showcase ALL workflow states
+  // ═════════════════════════════════════════════════════════════
+  console.log("• Creating leave requests (all workflow states)...");
   await prisma.leaveApproval.deleteMany({});
+  await prisma.leaveRequest.deleteMany({});
 
-  // Request 1: pending_l1 — Darwin sick leave, awaiting Dean
-  const lr1 = await prisma.leaveRequest.create({
+  const profId = createdEmployees["EMP-0005"]; // Darwin (Professor)
+  const prof2Id = createdEmployees["EMP-0006"]; // Maria (Professor)
+  const deanId = createdEmployees["EMP-0003"]; // Neil (Dean)
+  const hrId = createdEmployees["EMP-0001"]; // Jeremiah (HR)
+  const acctId = createdEmployees["EMP-0002"]; // Cristina (Accountant)
+  const hrStaffId = createdEmployees["EMP-0007"]; // John (HR Staff)
+  const acctStaffId = createdEmployees["EMP-0008"]; // Ana (Accounting Staff)
+  const itStaffId = createdEmployees["EMP-0004"]; // Leander (IT Staff)
+
+  // ── (1) Draft — Ana, Vacation Leave, 3 days, not yet submitted ──
+  await prisma.leaveRequest.create({
     data: {
       requestNo: "LR-0001",
+      employeeId: acctStaffId,
+      leaveTypeId: vacationLeave.id,
+      startDate: daysFromNow(14),
+      endDate: daysFromNow(16),
+      workdays: 3,
+      reason: "Planning a weekend trip to Baguio with family.",
+      status: "draft",
+    },
+  });
+
+  // ── (2) Pending L1 — Darwin, Sick Leave, 2 days, awaiting Dean ──
+  const lr2 = await prisma.leaveRequest.create({
+    data: {
+      requestNo: "LR-0002",
       employeeId: profId,
       leaveTypeId: sickLeave.id,
-      startDate: new Date(`${YEAR}-02-10T00:00:00.000Z`),
-      endDate: new Date(`${YEAR}-02-11T00:00:00.000Z`),
+      startDate: daysFromNow(3),
+      endDate: daysFromNow(4),
       workdays: 2,
-      reason: "Flu — advised bed rest by physician.",
+      reason: "Flu symptoms — advised bed rest by physician.",
       status: "pending_l1",
     },
   });
   await prisma.leaveApproval.create({
     data: {
-      leaveRequestId: lr1.id,
+      leaveRequestId: lr2.id,
       level: 1,
       approverId: deanId,
       status: "pending",
     },
   });
 
-  // Request 2: pending_l2 — Darwin vacation leave, approved by Dean, awaiting HR
-  const lr2 = await prisma.leaveRequest.create({
+  // ── (3) Pending L2 — Maria, Vacation Leave, 5 days, Dean approved, awaiting HR ──
+  const lr3 = await prisma.leaveRequest.create({
     data: {
-      requestNo: "LR-0002",
-      employeeId: profId,
+      requestNo: "LR-0003",
+      employeeId: prof2Id,
       leaveTypeId: vacationLeave.id,
-      startDate: new Date(`${YEAR}-03-15T00:00:00.000Z`),
-      endDate: new Date(`${YEAR}-03-19T00:00:00.000Z`),
+      startDate: daysFromNow(10),
+      endDate: daysFromNow(14),
       workdays: 5,
       reason: "Family vacation — planned since December.",
       status: "pending_l2",
@@ -547,77 +638,65 @@ async function main() {
   });
   await prisma.leaveApproval.create({
     data: {
-      leaveRequestId: lr2.id,
+      leaveRequestId: lr3.id,
       level: 1,
       approverId: deanId,
       status: "approved",
-      remarks: "Approved — coverage arranged.",
-      actedAt: new Date(`${YEAR}-02-01T10:00:00.000Z`),
+      remarks: "Approved — coverage arranged with other faculty.",
+      actedAt: dayTime(-5, 10, 0),
     },
   });
   await prisma.leaveApproval.create({
     data: {
-      leaveRequestId: lr2.id,
+      leaveRequestId: lr3.id,
       level: 2,
       approverId: hrId,
       status: "pending",
     },
   });
 
-  // Request 3: approved — Cristina emergency leave (self-approved via canSelfApproveLeave)
-  const acctId = createdEmployees["EMP-0002"];
-  const lr3 = await prisma.leaveRequest.create({
+  // ── (4) Approved — Cristina, Emergency Leave, 1 day (self-approved via Accountant role) ──
+  const lr4 = await prisma.leaveRequest.create({
     data: {
-      requestNo: "LR-0003",
+      requestNo: "LR-0004",
       employeeId: acctId,
       leaveTypeId: emergencyLeave.id,
-      startDate: new Date(`${YEAR}-01-20T00:00:00.000Z`),
-      endDate: new Date(`${YEAR}-01-20T00:00:00.000Z`),
+      startDate: daysFromNow(-30),
+      endDate: daysFromNow(-30),
       workdays: 1,
-      reason: "Family emergency.",
+      reason: "Family emergency — urgent household matter.",
       status: "approved",
     },
   });
   await prisma.leaveApproval.create({
     data: {
-      leaveRequestId: lr3.id,
+      leaveRequestId: lr4.id,
       level: 1,
       approverId: acctId,
       status: "approved",
       remarks: "Self-approved (Accountant role).",
-      actedAt: new Date(`${YEAR}-01-18T09:00:00.000Z`),
+      actedAt: dayTime(-31, 9, 0),
     },
   });
   await prisma.leaveApproval.create({
     data: {
-      leaveRequestId: lr3.id,
+      leaveRequestId: lr4.id,
       level: 2,
       approverId: acctId,
       status: "approved",
       remarks: "Self-approved (Accountant role).",
-      actedAt: new Date(`${YEAR}-01-18T09:00:00.000Z`),
+      actedAt: dayTime(-31, 9, 0),
     },
-  });
-  // Update used days on the balance
-  await prisma.leaveBalance.update({
-    where: {
-      employeeId_leaveTypeId_year: {
-        employeeId: acctId,
-        leaveTypeId: emergencyLeave.id,
-        year: YEAR,
-      },
-    },
-    data: { usedDays: 1 },
   });
 
-  // Request 4: rejected — Darwin emergency leave, rejected by Dean
-  const lr4 = await prisma.leaveRequest.create({
+  // ── (5) Rejected — Darwin, Emergency Leave, 1 day, rejected by Dean ──
+  const lr5 = await prisma.leaveRequest.create({
     data: {
-      requestNo: "LR-0004",
+      requestNo: "LR-0005",
       employeeId: profId,
       leaveTypeId: emergencyLeave.id,
-      startDate: new Date(`${YEAR}-01-08T00:00:00.000Z`),
-      endDate: new Date(`${YEAR}-01-08T00:00:00.000Z`),
+      startDate: daysFromNow(-60),
+      endDate: daysFromNow(-60),
       workdays: 1,
       reason: "Personal matter.",
       status: "rejected",
@@ -625,18 +704,91 @@ async function main() {
   });
   await prisma.leaveApproval.create({
     data: {
-      leaveRequestId: lr4.id,
+      leaveRequestId: lr5.id,
       level: 1,
       approverId: deanId,
       status: "rejected",
       remarks: "Insufficient detail. Please resubmit with documentation.",
-      actedAt: new Date(`${YEAR}-01-06T14:00:00.000Z`),
+      actedAt: dayTime(-61, 14, 0),
     },
   });
 
-  // ─────────────────────────────────────────────────────────────
+  // ── (6) Cancelled — John, Vacation Leave, 2 days, withdrawn by requester ──
+  await prisma.leaveRequest.create({
+    data: {
+      requestNo: "LR-0006",
+      employeeId: hrStaffId,
+      leaveTypeId: vacationLeave.id,
+      startDate: daysFromNow(-45),
+      endDate: daysFromNow(-44),
+      workdays: 2,
+      reason: "Planned staycation — no longer pushing through.",
+      status: "cancelled",
+    },
+  });
+
+  // ── (7) Approved — Leander, Vacation Leave, 3 days (standard approval) ──
+  const lr7 = await prisma.leaveRequest.create({
+    data: {
+      requestNo: "LR-0007",
+      employeeId: itStaffId,
+      leaveTypeId: vacationLeave.id,
+      startDate: daysFromNow(20),
+      endDate: daysFromNow(22),
+      workdays: 3,
+      reason: "Attending a tech conference in Manila.",
+      status: "approved",
+    },
+  });
+  await prisma.leaveApproval.create({
+    data: {
+      leaveRequestId: lr7.id,
+      level: 1,
+      approverId: deanId,
+      status: "approved",
+      remarks: "Approved — no conflict with schedule.",
+      actedAt: dayTime(-2, 11, 30),
+    },
+  });
+  await prisma.leaveApproval.create({
+    data: {
+      leaveRequestId: lr7.id,
+      level: 2,
+      approverId: hrId,
+      status: "approved",
+      remarks: "Approved — ensure proper handoff.",
+      actedAt: dayTime(-1, 9, 15),
+    },
+  });
+
+  // ── (8) Pending L1 — John, Sick Leave, 1 day, awaiting Dean (cross-group) ──
+  const lr8 = await prisma.leaveRequest.create({
+    data: {
+      requestNo: "LR-0008",
+      employeeId: hrStaffId,
+      leaveTypeId: sickLeave.id,
+      startDate: daysFromNow(1),
+      endDate: daysFromNow(1),
+      workdays: 1,
+      reason: "Medical check-up scheduled.",
+      status: "pending_l1",
+    },
+  });
+  // HR staff reports to... who approves L1? 
+  // For HR group, L1 might be handled differently. We'll use a generic setup.
+  // Since there's no Dean for HR, we can leave it with a pending approval.
+  await prisma.leaveApproval.create({
+    data: {
+      leaveRequestId: lr8.id,
+      level: 1,
+      approverId: hrId, // HR head approves L1 for HR staff
+      status: "pending",
+    },
+  });
+
+  // ═════════════════════════════════════════════════════════════
   // 7. Evaluation form + 10 default criteria (5 categories × 2)
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating evaluation form + criteria...");
   const evalForm = await prisma.evaluationForm.upsert({
     where: { id: "eval-form-faculty-2026" },
@@ -723,8 +875,8 @@ async function main() {
   ];
 
   // Replace existing criteria
-  await prisma.evaluation.deleteMany({});
   await prisma.evaluationResponse.deleteMany({});
+  await prisma.evaluation.deleteMany({});
   await prisma.evaluationCriterion.deleteMany({ where: { formId: evalForm.id } });
   const createdCriteria: EvaluationCriterion[] = [];
   for (const c of defaultCriteria) {
@@ -741,79 +893,253 @@ async function main() {
     createdCriteria.push(criterion);
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // 8. Evaluation period — 1st Semester 2026 (open)
-  // ─────────────────────────────────────────────────────────────
-  console.log("• Creating evaluation period...");
-  const evalPeriod = await prisma.evaluationPeriod.upsert({
-    where: { id: "eval-period-1s-2026" },
-    update: {
+  // ═════════════════════════════════════════════════════════════
+  // 8. Evaluation periods — open (current) + closed (archived)
+  // ═════════════════════════════════════════════════════════════
+  console.log("• Creating evaluation periods...");
+  await prisma.evaluationPeriod.deleteMany({});
+
+  // Closed/archived period: 2nd Semester 2025 (Nov 2025 - Mar 2026)
+  const closedPeriod = await prisma.evaluationPeriod.create({
+    data: {
+      id: "eval-period-2s-2025",
       formId: evalForm.id,
-      name: "1st Semester 2026",
-      startDate: new Date(`${YEAR}-06-01T00:00:00.000Z`),
-      endDate: new Date(`${YEAR}-10-31T00:00:00.000Z`),
-      status: "open",
+      name: "2nd Semester 2025",
+      startDate: new Date("2025-11-01T00:00:00.000Z"),
+      endDate: new Date("2026-03-31T00:00:00.000Z"),
+      status: "archived",
     },
-    create: {
+  });
+
+  // Open period: 1st Semester 2026 (Jun 2026 - Oct 2026)
+  const openPeriod = await prisma.evaluationPeriod.create({
+    data: {
       id: "eval-period-1s-2026",
       formId: evalForm.id,
       name: "1st Semester 2026",
-      startDate: new Date(`${YEAR}-06-01T00:00:00.000Z`),
-      endDate: new Date(`${YEAR}-10-31T00:00:00.000Z`),
+      startDate: new Date("2026-06-01T00:00:00.000Z"),
+      endDate: new Date("2026-10-31T00:00:00.000Z"),
       status: "open",
     },
   });
 
-  // ─────────────────────────────────────────────────────────────
-  // 9. Submitted evaluation — Neil (evaluator) → Darwin (employee), score 4.50
-  // ─────────────────────────────────────────────────────────────
-  console.log("• Creating sample evaluation (Neil → Darwin, 4.50)...");
-  await prisma.evaluation.deleteMany({
-    where: {
-      periodId: evalPeriod.id,
-      evaluatorId: deanId,
-      employeeId: profId,
-    },
-  });
+  // ═════════════════════════════════════════════════════════════
+  // 9. Evaluation submissions
+  // ═════════════════════════════════════════════════════════════
+  console.log("• Creating evaluation submissions...");
 
-  // Build response data: average ~4.5 across 10 criteria
-  // Use weights to balance — total weighted average should be 4.50
-  // We'll set scores alternating 4 and 5 so simple avg = 4.5
-  const responses = createdCriteria.map((c, i) => ({
-    criterionId: c.id,
-    score: i % 2 === 0 ? 5 : 4,
-    comments: null as string | null,
-  }));
+  /** Helper: create an evaluation with responses giving a target average score. */
+  async function createEvaluation(
+    periodId: string,
+    employeeId: string,
+    evaluatorId: string,
+    targetAvg: number,
+    remarks: string | null,
+    submitted: boolean,
+    submittedDate?: Date
+  ) {
+    // Build scores that average to targetAvg
+    const scores = createdCriteria.map((_, i) => {
+      // Alternate around targetAvg
+      const base = Math.floor(targetAvg);
+      const mod = i % 2 === 0 ? 1 : -1;
+      return Math.min(5, Math.max(1, targetAvg + mod * 0.5));
+    });
 
-  // Weighted total score
-  const totalWeight = createdCriteria.reduce((sum, c) => sum + c.weight, 0);
-  const weightedSum = createdCriteria.reduce(
-    (sum, c, i) => sum + c.weight * responses[i].score,
-    0
-  );
-  const totalScore = Number((weightedSum / totalWeight).toFixed(2));
+    const totalWeight = createdCriteria.reduce((sum, c) => sum + c.weight, 0);
+    const weightedSum = createdCriteria.reduce(
+      (sum, c, i) => sum + c.weight * scores[i],
+      0
+    );
+    const totalScore = Number((weightedSum / totalWeight).toFixed(2));
 
-  const submittedEval = await prisma.evaluation.create({
-    data: {
-      periodId: evalPeriod.id,
-      formId: evalForm.id,
-      evaluatorId: deanId,
-      employeeId: profId,
-      status: "submitted",
-      totalScore,
-      remarks:
-        "Strong performance overall. Continue developing student engagement strategies.",
-      submittedAt: new Date(`${YEAR}-10-15T14:30:00.000Z`),
-      responses: {
-        create: responses,
+    const ev = await prisma.evaluation.create({
+      data: {
+        periodId,
+        formId: evalForm.id,
+        evaluatorId,
+        employeeId,
+        status: submitted ? "submitted" : "draft",
+        totalScore: submitted ? totalScore : null,
+        remarks,
+        submittedAt: submitted ? submittedDate ?? new Date() : null,
+        responses: {
+          create: createdCriteria.map((c, i) => ({
+            criterionId: c.id,
+            score: scores[i],
+            comments: i % 3 === 0 ? "Consistently performs well in this area." : null,
+          })),
+        },
       },
-    },
-  });
-  console.log(`  Evaluation ${submittedEval.id} created with totalScore=${totalScore}`);
+    });
+    return ev;
+  }
 
-  // ─────────────────────────────────────────────────────────────
-  // 10. System settings — premises config
-  // ─────────────────────────────────────────────────────────────
+  // ── Closed period evaluations (archived) ──
+
+  // Dean → Darwin (4.20) — submitted last semester
+  await createEvaluation(
+    closedPeriod.id,
+    profId,
+    deanId,
+    4.2,
+    "Good performance. Showed improvement in classroom management. Continue developing student engagement strategies.",
+    true,
+    new Date("2026-03-20T14:30:00.000Z")
+  );
+
+  // HR → John (3.80) — submitted last semester
+  await createEvaluation(
+    closedPeriod.id,
+    hrStaffId,
+    hrId,
+    3.8,
+    "Met expectations. Needs improvement in documentation turnaround time.",
+    true,
+    new Date("2026-03-22T10:00:00.000Z")
+  );
+
+  // Dean → Maria (4.50) — submitted last semester
+  await createEvaluation(
+    closedPeriod.id,
+    prof2Id,
+    deanId,
+    4.5,
+    "Excellent performance. Outstanding student engagement and innovative teaching methods.",
+    true,
+    new Date("2026-03-25T11:00:00.000Z")
+  );
+
+  // ── Open period evaluations (current) ──
+
+  // Dean → Darwin (4.50) — submitted this semester
+  await createEvaluation(
+    openPeriod.id,
+    profId,
+    deanId,
+    4.5,
+    "Strong performance overall. Continue developing student engagement strategies.",
+    true,
+    dayTime(-15, 14, 30)
+  );
+
+  // Dean → Maria — still draft (not yet submitted)
+  await createEvaluation(
+    openPeriod.id,
+    prof2Id,
+    deanId,
+    4.0,
+    null,
+    false
+  );
+
+  // ═════════════════════════════════════════════════════════════
+  // 10. Attendance records — multiple days with various states
+  // ═════════════════════════════════════════════════════════════
+  console.log("• Creating attendance records...");
+  await prisma.attendance.deleteMany({});
+
+  // Premises coordinates (Angeles campus)
+  const campusLat = 15.1428;
+  const campusLng = 120.5886;
+
+  // Attendance data: employeeIds with clock patterns for different days
+  // Each entry: [dayOffset, empId, clockInHour, clockInMin, clockedOut, clockOutHour, clockOutMin]
+  const attendanceData: Array<[number, string, number, number, boolean, number, number]> = [
+    // Today
+    [0, "EMP-0001", 7, 55, true, 17, 5],
+    [0, "EMP-0002", 8, 2, true, 17, 10],
+    [0, "EMP-0003", 8, 15, false, 0, 0],
+    [0, "EMP-0005", 9, 5, false, 0, 0],
+    [0, "EMP-0007", 8, 30, true, 17, 30],
+    [0, "EMP-0008", 8, 45, true, 17, 15],
+    // Yesterday
+    [-1, "EMP-0001", 7, 50, true, 17, 8],
+    [-1, "EMP-0002", 8, 5, true, 17, 12],
+    [-1, "EMP-0003", 8, 10, true, 17, 5],
+    [-1, "EMP-0004", 8, 0, true, 17, 0],
+    [-1, "EMP-0005", 9, 10, true, 16, 55],
+    // 2 days ago
+    [-2, "EMP-0001", 7, 55, true, 17, 2],
+    [-2, "EMP-0002", 8, 0, true, 17, 15],
+    [-2, "EMP-0005", 9, 0, false, 0, 0],
+    // 3 days ago (some people didn't clock in)
+    [-3, "EMP-0001", 8, 0, true, 17, 5],
+    [-3, "EMP-0002", 8, 15, true, 17, 10],
+    [-3, "EMP-0003", 8, 30, true, 17, 30],
+  ];
+
+  // Track which employees have records for which days
+  const employeesWithRecords = new Set<string>();
+
+  for (const [offset, empId, ciH, ciM, clockedOut, coH, coM] of attendanceData) {
+    const empDbId = createdEmployees[empId];
+    if (!empDbId) continue;
+
+    const recordDate = daysFromNow(offset);
+
+    const clockInAt = new Date(recordDate);
+    clockInAt.setHours(ciH, ciM, 0, 0);
+
+    const record: Record<string, unknown> = {
+      employeeId: empDbId,
+      date: recordDate,
+      clockInAt,
+      clockInLat: campusLat,
+      clockInLng: campusLng,
+      clockInOnPremise: true,
+      clockInDistance: 0,
+      biometricVerified: true,
+      manuallyEdited: false,
+    };
+
+    if (clockedOut) {
+      const clockOutAt = new Date(recordDate);
+      clockOutAt.setHours(coH, coM, 0, 0);
+      record.clockOutAt = clockOutAt;
+      record.clockOutLat = campusLat;
+      record.clockOutLng = campusLng;
+      record.clockOutOnPremise = true;
+      record.clockOutDistance = 0;
+    }
+
+    await prisma.attendance.create({ data: record as never });
+    employeesWithRecords.add(empId);
+  }
+
+  // ═════════════════════════════════════════════════════════════
+  // 11. Employee certificates
+  // ═════════════════════════════════════════════════════════════
+  console.log("• Creating employee certificates...");
+  await prisma.employeeCertificate.deleteMany({});
+
+  const certData = [
+    // Darwin (Professor)
+    { empId: "EMP-0005", title: "Certified Java Developer", issuer: "Oracle University", certNo: "ORA-JAVA-2024-001", issueDate: new Date("2024-03-15") },
+    { empId: "EMP-0005", title: "Teaching Excellence Award", issuer: "RCC Academic Council", certNo: "RCC-TEA-2025-042", issueDate: new Date("2025-06-20") },
+    { empId: "EMP-0005", title: "Data Science Fundamentals", issuer: "Coursera / IBM", certNo: "COU-DS-2025-889", issueDate: new Date("2025-01-10") },
+    // John (HR Staff)
+    { empId: "EMP-0007", title: "Certified HR Associate", issuer: "HR Philippines", certNo: "HRP-CHRA-2024-556", issueDate: new Date("2024-08-01") },
+    { empId: "EMP-0007", title: "Labor Law Seminar 2025", issuer: "DOLE Regional Office", certNo: "DOLE-LLS-2025-112", issueDate: new Date("2025-11-05") },
+    // Maria (Professor)
+    { empId: "EMP-0006", title: "TESDA Trainers Methodology", issuer: "TESDA", certNo: "TESDA-TM-2024-789", issueDate: new Date("2024-05-22") },
+  ];
+
+  for (const cert of certData) {
+    await prisma.employeeCertificate.create({
+      data: {
+        employeeId: createdEmployees[cert.empId],
+        title: cert.title,
+        issuer: cert.issuer,
+        certificateNo: cert.certNo,
+        issueDate: cert.issueDate,
+      },
+    });
+  }
+
+  // ═════════════════════════════════════════════════════════════
+  // 12. System settings — premises config
+  // ═════════════════════════════════════════════════════════════
   console.log("• Creating system settings...");
   const premisesValue = JSON.stringify({
     lat: 15.1428,
@@ -831,64 +1157,9 @@ async function main() {
     },
   });
 
-  // ─────────────────────────────────────────────────────────────
-  // 11. Attendance — 4 records for today
-  // ─────────────────────────────────────────────────────────────
-  console.log("• Creating attendance records for today...");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayDate = new Date(today);
-
-  // Premises coordinates (Angeles campus)
-  const lat = 15.1428;
-  const lng = 120.5886;
-
-  // 4 employees clocked in today; first 2 also clocked out
-  const attendanceEmployees = [
-    { empId: "EMP-0001", clockInHour: 7, clockInMin: 55, clockedOut: true, clockOutHour: 17, clockOutMin: 5 },
-    { empId: "EMP-0002", clockInHour: 8, clockInMin: 2, clockedOut: true, clockOutHour: 17, clockOutMin: 10 },
-    { empId: "EMP-0003", clockInHour: 8, clockInMin: 15, clockedOut: false, clockOutHour: 0, clockOutMin: 0 },
-    { empId: "EMP-0005", clockInHour: 9, clockInMin: 5, clockedOut: false, clockOutHour: 0, clockOutMin: 0 },
-  ];
-
-  // Clean today's records (best-effort)
-  await prisma.attendance.deleteMany({
-    where: { date: { gte: todayDate, lte: new Date(todayDate.getTime() + 86_400_000) } },
-  });
-
-  for (const a of attendanceEmployees) {
-    const empDbId = createdEmployees[a.empId];
-    const clockInAt = new Date(todayDate);
-    clockInAt.setHours(a.clockInHour, a.clockInMin, 0, 0);
-
-    const data: Record<string, unknown> = {
-      employeeId: empDbId,
-      date: todayDate,
-      clockInAt,
-      clockInLat: lat,
-      clockInLng: lng,
-      clockInOnPremise: true,
-      clockInDistance: 0,
-      biometricVerified: false,
-      manuallyEdited: false,
-    };
-
-    if (a.clockedOut) {
-      const clockOutAt = new Date(todayDate);
-      clockOutAt.setHours(a.clockOutHour, a.clockOutMin, 0, 0);
-      data.clockOutAt = clockOutAt;
-      data.clockOutLat = lat;
-      data.clockOutLng = lng;
-      data.clockOutOnPremise = true;
-      data.clockOutDistance = 0;
-    }
-
-    await prisma.attendance.create({ data: data as never });
-  }
-
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   // Done
-  // ─────────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════════
   console.log("");
   console.log("✅ Seed complete!");
   console.log("");
@@ -898,9 +1169,23 @@ async function main() {
   console.log("EMP-0000 / admin@rcc.edu.ph              → System Admin");
   console.log("EMP-0001 / jeremiah.sawal@rcc.edu.ph     → HR Personnel");
   console.log("EMP-0002 / cristina.reyes@rcc.edu.ph     → Accountant");
-  console.log("EMP-0003 / neil.datu@rcc.edu.ph          → Dean");
+  console.log("EMP-0003 / neil.datu@rcc.edu.ph          → Dean (CCS)");
   console.log("EMP-0004 / leander.pamintuan@rcc.edu.ph  → IT Staff");
   console.log("EMP-0005 / darwin.medina@rcc.edu.ph      → Professor");
+  console.log("EMP-0006 / maria.santos@rcc.edu.ph       → Professor");
+  console.log("EMP-0007 / john.delacruz@rcc.edu.ph      → HR Personnel");
+  console.log("EMP-0008 / ana.gonzales@rcc.edu.ph       → Accountant");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("");
+  console.log("📋 Leave workflow showcase:");
+  console.log("  LR-0001 (Ana)          → Draft");
+  console.log("  LR-0002 (Darwin)       → Pending L1 (awaiting Dean)");
+  console.log("  LR-0003 (Maria)        → Pending L2 (Dean OK'd, awaiting HR)");
+  console.log("  LR-0004 (Cristina)     → Approved (self-approved)");
+  console.log("  LR-0005 (Darwin)       → Rejected (by Dean)");
+  console.log("  LR-0006 (John)         → Cancelled (withdrawn)");
+  console.log("  LR-0007 (Leander)      → Approved (standard 2-level)");
+  console.log("  LR-0008 (John)         → Pending L1 (awaiting HR head)");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 }
 

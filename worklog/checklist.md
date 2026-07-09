@@ -24,3 +24,10 @@
 - [x] Installed & authenticated cloudflared
 - [x] Created tunnel + DNS route for app.rcc-hiros.com
 - [x] Cleaned up — user pursuing alternative solution
+
+## Session 04 — Seed data overhaul
+
+- [x] Plan finalized
+- [x] Implement seed update
+- [x] Verify seed runs cleanly
+- [x] Verify APIs return correct data
