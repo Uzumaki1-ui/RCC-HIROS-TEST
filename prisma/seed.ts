@@ -4,10 +4,14 @@
 // evaluation form/criteria/period/evaluation, attendance, premises.
 // ═══════════════════════════════════════════════════════════════
 
-import { PrismaClient, type EvaluationCriterion } from "@prisma/client";
+import { PrismaClient, type EvaluationCriterion } from "../src/generated/prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { hash } from "bcryptjs";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaBetterSqlite3({
+  url: process.env.DATABASE_URL || "file:./db/custom.db",
+});
+const prisma = new PrismaClient({ adapter });
 
 const DEFAULT_PASSWORD = "RCC2026!";
 const YEAR = 2026;
