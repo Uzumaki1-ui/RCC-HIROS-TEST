@@ -57,7 +57,7 @@ export function usePermissions(): UsePermissionsResult {
     };
 
     const visibleModules = isSystemAdmin
-      ? MODULES // System admin sees ALL modules
+      ? [...MODULES] // System admin sees ALL modules
       : getVisibleModules(permissions);
 
     return {

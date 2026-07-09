@@ -354,7 +354,7 @@ export function MyLeavePage() {
                               if (confirm("Cancel this leave request? This cannot be undone.")) {
                                 try {
                                   await apiFetch(`/api/leave-requests/${r.id}`, { method: "DELETE" });
-                                  load();
+                                  loadRequests();
                                 } catch (e) { alert(e instanceof Error ? e.message : "Failed to cancel"); }
                               }
                             }}
@@ -415,9 +415,9 @@ export function MyLeavePage() {
                     {viewingRequest.approvals.map((a) => (
                       <div key={a.id} className="text-xs text-rcc-text-secondary flex items-center gap-2">
                         <span className="font-medium">L{a.level}</span>
-                        <span>{a.approver?.name ?? "—"}</span>
+                        <span>{a.approverName ?? "—"}</span>
                         <span className={a.status === "approved" ? "text-green-600" : a.status === "rejected" ? "text-red-600" : "text-rcc-text-muted"}>{a.status}</span>
-                        <span>{new Date(a.actedAt).toLocaleDateString()}</span>
+                        <span>{a.actedAt ? new Date(a.actedAt).toLocaleDateString() : "—"}</span>
                         {a.remarks && <span className="italic">— "{a.remarks}"</span>}
                       </div>
                     ))}
@@ -433,7 +433,7 @@ export function MyLeavePage() {
                       try {
                         await apiFetch(`/api/leave-requests/${viewingRequest.id}`, { method: "DELETE" });
                         setViewingRequest(null);
-                        load();
+                        loadRequests();
                       } catch (e) { alert(e instanceof Error ? e.message : "Failed to cancel"); }
                     }
                   }}

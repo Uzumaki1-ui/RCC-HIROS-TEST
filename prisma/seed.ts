@@ -4,7 +4,7 @@
 // evaluation form/criteria/period/evaluation, attendance, premises.
 // ═══════════════════════════════════════════════════════════════
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type EvaluationCriterion } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -722,7 +722,7 @@ async function main() {
   await prisma.evaluation.deleteMany({});
   await prisma.evaluationResponse.deleteMany({});
   await prisma.evaluationCriterion.deleteMany({ where: { formId: evalForm.id } });
-  const createdCriteria = [];
+  const createdCriteria: EvaluationCriterion[] = [];
   for (const c of defaultCriteria) {
     const criterion = await prisma.evaluationCriterion.create({
       data: {

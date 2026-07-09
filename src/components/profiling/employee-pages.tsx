@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react
 import {
   Plus, Search, Pencil, ArrowLeft, Save, Users as UsersIcon, Upload,
   FileText, Download, Trash2, Eye, X, Lock, Mail, Phone, MapPin, Calendar,
-  IdCard, Briefcase, Award, Image as ImageIcon, AlertTriangle,
+  IdCard, Briefcase, Award, Image as ImageIcon, AlertTriangle, Building2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
@@ -875,7 +875,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
             <InfoItem icon={UsersIcon} label="Gender" value={employee.gender} />
             <InfoItem icon={Briefcase} label="Contract" value={employee.contractType} />
             <InfoItem icon={Calendar} label="Hire Date" value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null} />
-            <InfoItem icon={Building2Icon} label="Group" value={employee.group ? `${employee.group.name} (${employee.group.code})` : null} />
+            <InfoItem icon={Building2} label="Group" value={employee.group ? `${employee.group.name} (${employee.group.code})` : null} />
           </dl>
         </div>
 

@@ -67,6 +67,7 @@ export type PermissionIdentifier = (typeof PERMISSIONS)[number];
 export interface ModuleDef {
   key: ModuleKey;
   label: string;
+  description?: string;
   icon:
     | "LayoutDashboard"
     | "Users"

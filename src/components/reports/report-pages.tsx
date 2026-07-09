@@ -324,7 +324,7 @@ function HeadcountReport({ canExport }: { canExport: boolean }) {
               onClick={() => setRoleId(null)}
               className={`font-medium ${!roleId ? "text-rcc-text-primary" : "text-rcc-accent hover:underline"}`}
             >
-              {selectedGroup?.groupName ?? groupCode}
+              {selectedGroup ? ("name" in selectedGroup ? selectedGroup.name : selectedGroup.groupName) : groupCode}
             </button>
           </>
         )}

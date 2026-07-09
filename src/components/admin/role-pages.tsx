@@ -133,7 +133,7 @@ const PERMISSIONS_BY_MODULE: PermissionModule[] = [
 }));
 
 // Validate that all PERMISSIONS exist in the matrix.
-const _allIds = new Set(PERMISSIONS);
+const _allIds = new Set<string>(PERMISSIONS);
 PERMISSIONS_BY_MODULE.forEach((m) => m.permissions.forEach((p) => _allIds.delete(p.id)));
 // _allIds should be empty in production; left as runtime no-op.
 
