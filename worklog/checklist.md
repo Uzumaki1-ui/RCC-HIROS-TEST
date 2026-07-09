@@ -18,3 +18,9 @@
 - [x] Phase 3: Security headers in middleware
 - [ ] Phase 4: CAPTCHA on login — deferred
 - [ ] Phase 4: Clean database for production — deferred
+
+## Session 03 — Cloudflare Tunnel (cancelled)
+
+- [x] Installed & authenticated cloudflared
+- [x] Created tunnel + DNS route for app.rcc-hiros.com
+- [x] Cleaned up — user pursuing alternative solution
