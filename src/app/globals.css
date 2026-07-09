@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* RCC-HIROS Custom Colors (mapped to design spec) — use var() so Tailwind v4 generates utilities */
+  --color-rcc-primary: var(--rcc-primary);
+  --color-rcc-primary-foreground: var(--rcc-primary-foreground);
+  --color-rcc-accent: var(--rcc-accent);
+  --color-rcc-bg: var(--rcc-bg);
+  --color-rcc-surface: var(--rcc-surface);
+  --color-rcc-text-primary: var(--rcc-text-primary);
+  --color-rcc-text-secondary: var(--rcc-text-secondary);
+  --color-rcc-text-muted: var(--rcc-text-muted);
+  --color-rcc-border: var(--rcc-border);
+  --color-rcc-sidebar-bg: var(--rcc-sidebar-bg);
+  --color-rcc-success: var(--rcc-success);
+  --color-rcc-warning: var(--rcc-warning);
+  --color-rcc-error: var(--rcc-error);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* RCC-HIROS Light Theme Only — 13 Color Palette */
+  --background: #FAF7F2;
+  --foreground: #3B2A1A;
+  --card: #FFFFFF;
+  --card-foreground: #3B2A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #3B2A1A;
+  --primary: #6B4A30;
+  --primary-foreground: #FEF9C3;
+  --secondary: #D4A017;
+  --secondary-foreground: #3B2A1A;
+  --muted: #FAF7F2;
+  --muted-foreground: #C49A64;
+  --accent: #D4A017;
+  --accent-foreground: #3B2A1A;
+  --destructive: #DC2626;
+  --border: #E8D5B0;
+  --input: #E8D5B0;
+  --ring: #D4A017;
+
+  /* Chart Colors (5 colors from spec) */
+  --chart-1: #6B4A30;
+  --chart-2: #D4A017;
+  --chart-3: #A87B4F;
+  --chart-4: #8B5E3C;
+  --chart-5: #C49A64;
+
+  /* Sidebar — Dark Brown */
+  --sidebar: #3B2A1A;
+  --sidebar-foreground: #FEF9C3;
+  --sidebar-primary: #D4A017;
+  --sidebar-primary-foreground: #3B2A1A;
+  --sidebar-accent: #D4A017;
+  --sidebar-accent-foreground: #3B2A1A;
+  --sidebar-border: rgba(212, 160, 23, 0.2);
+  --sidebar-ring: #D4A017;
+
+  /* RCC-HIROS Custom Color Values */
+  --rcc-primary: #6B4A30;
+  --rcc-primary-foreground: #FEF9C3;
+  --rcc-accent: #D4A017;
+  --rcc-bg: #FAF7F2;
+  --rcc-surface: #FFFFFF;
+  --rcc-text-primary: #3B2A1A;
+  --rcc-text-secondary: #8B5E3C;
+  --rcc-text-muted: #C49A64;
+  --rcc-border: #E8D5B0;
+  --rcc-sidebar-bg: #3B2A1A;
+  --rcc-success: #16A34A;
+  --rcc-warning: #D97706;
+  --rcc-error: #DC2626;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar for HR dashboard lists */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #C49A64;
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #8B5E3C;
+}
