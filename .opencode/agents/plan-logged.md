@@ -1,6 +1,7 @@
 ---
 name: plan-logged
 description: Planning mode with auto-logging to the project worklog. Use for analysis, investigation, and creating fix plans.
+mode: primary
 ---
 
 # plan-logged Agent

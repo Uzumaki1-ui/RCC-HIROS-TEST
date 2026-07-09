@@ -1,6 +1,7 @@
 ---
 name: build-logged
 description: Build mode with auto-logging to the project worklog. Use for implementing fixes, writing code, running commands.
+mode: primary
 ---
 
 # build-logged Agent
