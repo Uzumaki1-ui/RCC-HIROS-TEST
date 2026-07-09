@@ -112,8 +112,9 @@ Add Cloudflare Turnstile or Google reCAPTCHA if the site is public-facing.
 - [x] Rate limiting on `/api/auth/login`
 - [x] HTTPS enforced in middleware
 - [x] Security headers added
-- [ ] Production `.env` never committed
-- [ ] Clean database deployed (no dev seed data)
+- [x] Production `.env` never committed
+- [ ] CAPTCHA on login — deferred
+- [ ] Clean database deployed (no dev seed data) — deferred
 
 ---
 
@@ -126,5 +127,6 @@ Add Cloudflare Turnstile or Google reCAPTCHA if the site is public-facing.
 | P0 | Generate & set production JWT_SECRET | 5 min | ✅ |
 | P1 | Rate limiting on login | 30 min | ✅ |
 | P1 | HTTPS enforcement + security headers | 15 min | ✅ |
-| P2 | CAPTCHA on login | 1-2 hours | ⏳ |
+| P2 | CAPTCHA on login | 1-2 hours | ⏳ Deferred |
 | P2 | Review z-ai-web-dev-sdk | 5 min | ✅ |
+| — | Clean database for production | varies | ⏳ Deferred |

@@ -16,4 +16,5 @@
 - [x] Phase 3: Add rate limiting on /api/auth/login
 - [x] Phase 3: HTTPS enforcement in middleware
 - [x] Phase 3: Security headers in middleware
-- [ ] Phase 4: Run pre-deployment checklist
+- [ ] Phase 4: CAPTCHA on login — deferred
+- [ ] Phase 4: Clean database for production — deferred
