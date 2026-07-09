@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "rcc-hiros",
       script: "scripts/dev-runner.js",
-      cwd: "/home/z/my-project/workspace-rcc-hiros",
+      cwd: "./",
       env: {
         PORT: "3000",
         NODE_ENV: "development",
@@ -23,8 +23,8 @@ module.exports = {
       listen_timeout: 30000,
 
       // ── Logging ──
-      error_file: "/home/z/my-project/workspace-rcc-hiros/dev.log",
-      out_file: "/home/z/my-project/workspace-rcc-hiros/dev.log",
+      error_file: "./dev.log",
+      out_file: "./dev.log",
       merge_logs: true,
       time: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",

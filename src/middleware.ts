@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths always pass through (no token check).
