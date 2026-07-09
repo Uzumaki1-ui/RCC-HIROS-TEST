@@ -4,6 +4,43 @@ import { db } from "@/lib/db";
 import { signToken } from "@/lib/auth-token";
 
 // ═══════════════════════════════════════════════════════════════
+// Rate limiter (in-memory, IP-based)
+// ═══════════════════════════════════════════════════════════════
+
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 20; // requests per window per IP
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetInMs: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetInMs: RATE_LIMIT_WINDOW_MS };
+  }
+
+  entry.count++;
+  const remaining = Math.max(0, RATE_LIMIT_MAX - entry.count);
+  const resetInMs = entry.resetAt - now;
+
+  if (entry.count > RATE_LIMIT_MAX) {
+    return { allowed: false, remaining: 0, resetInMs };
+  }
+
+  return { allowed: true, remaining, resetInMs };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // POST /api/auth/login
 // Accepts { identifier, password } where identifier is email or employeeId.
 // Locks account after 5 failed attempts. Returns JWT + full user payload.
@@ -50,6 +87,25 @@ function publicUser(emp: any) {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate limit check ──
+    const ip = getClientIp(request);
+    const { allowed, remaining, resetInMs } = checkRateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many login attempts. Please try again later.",
+          retryAfterMs: resetInMs,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil(resetInMs / 1000)),
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const { identifier, password } = body as {
       identifier?: string;

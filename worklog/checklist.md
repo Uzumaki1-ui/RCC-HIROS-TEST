@@ -10,7 +10,10 @@
 - [x] Phase 2: Generate & set production JWT_SECRET
 - [x] Remove unused z-ai-web-dev-sdk dependency
 - [x] Clean up .space-z.ai from allowedDevOrigins
-- [ ] Phase 3: Add rate limiting on /api/auth/login
-- [ ] Phase 3: HTTPS enforcement in middleware
-- [ ] Phase 3: Security headers in middleware
+
+## Session 02 — Phase 3 hardening
+
+- [x] Phase 3: Add rate limiting on /api/auth/login
+- [x] Phase 3: HTTPS enforcement in middleware
+- [x] Phase 3: Security headers in middleware
 - [ ] Phase 4: Run pre-deployment checklist

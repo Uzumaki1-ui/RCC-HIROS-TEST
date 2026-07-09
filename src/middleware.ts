@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
 // RCC-HIROS — Next.js Middleware
-// Simple gate: allows public paths (/login, /api/auth/login) and
-// lets everything else pass through. Auth enforcement happens at
-// the API route level (requireAuth/requirePermission) and on the
-// client via AuthProvider (token presence + /api/auth/me).
+// Responsibilities:
+//   1. HTTPS redirect in production
+//   2. Security headers on all responses
+//   3. Public path passthrough (auth enforced at API level)
 // ═══════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,17 +11,41 @@ import { NextRequest, NextResponse } from "next/server";
 export const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
-  // Public paths always pass through (no token check).
-  if (PUBLIC_PATHS.includes(pathname)) {
-    return NextResponse.next();
+  // ── 1. HTTPS redirect (production only) ──
+  if (process.env.NODE_ENV === "production") {
+    const proto = request.headers.get("x-forwarded-proto");
+    if (proto && proto !== "https") {
+      return NextResponse.redirect(
+        `https://${request.headers.get("host")}${pathname}${search}`,
+        301
+      );
+    }
   }
 
-  // Everything else also passes through. Auth is enforced by API routes
-  // (server-side via requireAuth/requirePermission) and by AuthProvider
-  // (client-side via token presence + /api/auth/me).
-  return NextResponse.next();
+  // ── 2. Build response with security headers ──
+  const response = NextResponse.next();
+
+  // HSTS — enforce HTTPS for 1 year, include subdomains, preload
+  response.headers.set(
+    "strict-transport-security",
+    "max-age=31536000; includeSubDomains; preload"
+  );
+  // Prevent MIME-type sniffing
+  response.headers.set("x-content-type-options", "nosniff");
+  // Prevent clickjacking
+  response.headers.set("x-frame-options", "DENY");
+  // Disable the referrer header for cross-origin requests
+  response.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  // XSS protection (legacy browsers)
+  response.headers.set("x-xss-protection", "1; mode=block");
+
+  // ── 3. Public paths pass through ──
+  // Auth is enforced by API routes (requireAuth/requirePermission)
+  // and by AuthProvider on the client side.
+
+  return response;
 }
 
 export const config = {

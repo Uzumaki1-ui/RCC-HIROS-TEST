@@ -106,12 +106,12 @@ Add Cloudflare Turnstile or Google reCAPTCHA if the site is public-facing.
 
 ## Phase 4 — Pre-Deployment Checklist
 
-- [ ] JWT_SECRET set in production environment
-- [ ] `.gitignore` updated with `db/`, `uploads/`, `.env`
-- [ ] No tracked secrets in git (`git ls-files` confirms clean)
-- [ ] Rate limiting on `/api/auth/login`
-- [ ] HTTPS enforced in middleware
-- [ ] Security headers added
+- [x] JWT_SECRET set in production environment
+- [x] `.gitignore` updated with `db/`, `uploads/`, `.env`
+- [x] No tracked secrets in git (`git ls-files` confirms clean)
+- [x] Rate limiting on `/api/auth/login`
+- [x] HTTPS enforced in middleware
+- [x] Security headers added
 - [ ] Production `.env` never committed
 - [ ] Clean database deployed (no dev seed data)
 
@@ -119,12 +119,12 @@ Add Cloudflare Turnstile or Google reCAPTCHA if the site is public-facing.
 
 ## Priority Summary
 
-| Priority | Task | Effort |
-|----------|------|--------|
-| P0 | Gitignore fix (db/ uploads/ .env) | 5 min |
-| P0 | Remove hardcoded JWT fallback | 5 min |
-| P0 | Generate & set production JWT_SECRET | 5 min |
-| P1 | Rate limiting on login | 30 min |
-| P1 | HTTPS enforcement + security headers | 15 min |
-| P2 | CAPTCHA on login | 1-2 hours |
-| P2 | Review z-ai-web-dev-sdk | 5 min |
+| Priority | Task | Effort | Status |
+|----------|------|--------|--------|
+| P0 | Gitignore fix (db/ uploads/ .env) | 5 min | ✅ |
+| P0 | Remove hardcoded JWT fallback | 5 min | ✅ |
+| P0 | Generate & set production JWT_SECRET | 5 min | ✅ |
+| P1 | Rate limiting on login | 30 min | ✅ |
+| P1 | HTTPS enforcement + security headers | 15 min | ✅ |
+| P2 | CAPTCHA on login | 1-2 hours | ⏳ |
+| P2 | Review z-ai-web-dev-sdk | 5 min | ✅ |
