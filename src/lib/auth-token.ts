@@ -6,8 +6,11 @@ import { db } from "@/lib/db";
 // JWT token (jose) — 8-hour expiry, HS256
 // ═══════════════════════════════════════════════════════════════
 
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "rcc-hiros-dev-secret-change-in-production"
+  process.env.JWT_SECRET
 );
 const ISSUER = "rcc-hiros";
 const AUDIENCE = "rcc-hiros-api";

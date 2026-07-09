@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
 
   // ── Dev Stability: Allow cross-origin requests from preview panel ──
   allowedDevOrigins: [
-    ".space-z.ai",
     "localhost",
   ],
 
