@@ -55,7 +55,7 @@ export function DynamicSidebar() {
         )}
         {visibleModules.map((m) => {
           const Icon = ICONS[m.icon] || LayoutDashboard;
-          const active = currentPage === m.key;
+          const active = currentPage === m.key && !(m.key === "profiling" && (useAuthStore.getState() as any).currentSubpage === "myprofile");
           return (
             <button key={m.key} onClick={() => handleClick(m)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors ${active ? "bg-rcc-accent/15 text-rcc-accent" : "text-rcc-primary-foreground/70 hover:bg-white/5 hover:text-rcc-primary-foreground"}`}

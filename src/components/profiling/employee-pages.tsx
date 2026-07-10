@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Search, Pencil, ArrowLeft, Save, Users as UsersIcon, Upload,
   FileText, Download, Trash2, Eye, X, Lock, Mail, Phone, MapPin, Calendar,
@@ -643,6 +644,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
 export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   const { setCurrentPage } = useAuthStore();
   const { has } = usePermissions();
+  const { user } = useAuth();
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
@@ -797,6 +799,14 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   if (error && !employee) {
     return (
       <div className="space-y-4">
+      {employeeId !== user?.id && (
+        <button
+          onClick={() => setCurrentPage("profiling")}
+          className="inline-flex items-center gap-1 text-sm text-rcc-text-secondary hover:text-rcc-primary transition-colors mb-3"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to employees
+        </button>
+      )}
         <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-rcc-error">{error}</div>
       </div>
     );
@@ -810,6 +820,16 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   return (
     <div className="space-y-6">
 
+      {employeeId !== user?.id && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCurrentPage("profiling")}
+            className="inline-flex items-center gap-1 text-sm text-rcc-text-secondary hover:text-rcc-primary transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to employees
+          </button>
+        </div>
+      )}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-rcc-error">{error}</div>
       )}
