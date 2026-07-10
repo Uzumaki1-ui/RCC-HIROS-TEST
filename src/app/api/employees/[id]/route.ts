@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth-token";
+import { requireAuth, requirePermission } from "@/lib/auth-token";
 
 // ═══════════════════════════════════════════════════════════════
 // /api/employees/[id]
@@ -15,10 +15,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requirePermission(request, "profiling.view");
+    // Self-access exception: any authenticated user can view their own profile.
+    // For viewing others' profiles, require profiling.view.
+    const auth = await requireAuth(request);
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
+
+    // If NOT viewing own profile, require profiling.view
+    if (auth.user.id !== id) {
+      if (!auth.user.isSystem && !auth.user.permissions.includes("profiling.view")) {
+        return NextResponse.json(
+          { error: "You do not have permission to view this employee's profile" },
+          { status: 403 }
+        );
+      }
+    }
     const employee = await db.employee.findUnique({
       where: { id },
       include: {
@@ -88,6 +100,7 @@ export async function GET(
         roleName: employee.role?.name ?? null,
         contractType: employee.contractType,
         hireDate: employee.hireDate?.toISOString() ?? null,
+        salary: employee.salary ?? null,
         active: employee.active,
         mustChangePwd: employee.mustChangePwd,
         lastLoginAt: employee.lastLoginAt?.toISOString() ?? null,
@@ -158,6 +171,7 @@ export async function PATCH(
       roleId,
       contractType,
       hireDate,
+      salary,
       active,
       password,
     } = body as {
@@ -174,6 +188,7 @@ export async function PATCH(
       roleId?: string | null;
       contractType?: string;
       hireDate?: string | null;
+      salary?: number | null;
       active?: boolean;
       password?: string;
     };
@@ -222,6 +237,7 @@ export async function PATCH(
     if (typeof contractType === "string" && contractType.trim())
       data.contractType = contractType.trim();
     if (hireDate !== undefined) data.hireDate = hireDate ? new Date(hireDate) : null;
+    if (salary !== undefined) data.salary = salary ?? null;
     if (active !== undefined) data.active = !!active;
 
     // Optional password reset
@@ -275,6 +291,7 @@ export async function PATCH(
         roleName: updated.role?.name ?? null,
         contractType: updated.contractType,
         hireDate: updated.hireDate?.toISOString() ?? null,
+        salary: updated.salary ?? null,
         active: updated.active,
         mustChangePwd: updated.mustChangePwd,
         certificateCount: updated._count.certificates,

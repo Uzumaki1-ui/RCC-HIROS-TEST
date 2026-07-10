@@ -21,10 +21,13 @@ export async function GET(request: NextRequest) {
     const roleId = searchParams.get("roleId") || undefined;
     const contractType = searchParams.get("contractType") || undefined;
     const activeParam = searchParams.get("active");
+    const scope = searchParams.get("scope") || "profiling";
 
-    // Group scoping: if !scopeAllProfiling && user.groupId, force groupId to user's
+    // Group scoping: use the appropriate scope permission
+    const scopeAll = scope === "evaluation" ? auth.user.scopeAllEvaluation : auth.user.scopeAllProfiling;
+
     let effectiveGroupId = groupId || undefined;
-    if (!auth.user.scopeAllProfiling && auth.user.groupId) {
+    if (!scopeAll && auth.user.groupId) {
       effectiveGroupId = auth.user.groupId;
     }
 
@@ -89,6 +92,7 @@ export async function GET(request: NextRequest) {
         gender: e.gender,
         contractType: e.contractType,
         hireDate: e.hireDate?.toISOString() ?? null,
+        salary: e.salary ?? null,
         active: e.active,
         groupId: e.groupId,
         groupName: e.group?.name ?? null,
@@ -128,6 +132,7 @@ export async function POST(request: NextRequest) {
       roleId,
       contractType = "Regular",
       hireDate,
+      salary = 0,
       active = true,
       password,
       mustChangePwd = true,
@@ -145,6 +150,7 @@ export async function POST(request: NextRequest) {
       roleId?: string;
       contractType?: string;
       hireDate?: string;
+      salary?: number;
       active?: boolean;
       password?: string;
       mustChangePwd?: boolean;
@@ -242,6 +248,7 @@ export async function POST(request: NextRequest) {
         roleId: roleId || null,
         contractType: contractType || "Regular",
         hireDate: hireDate ? new Date(hireDate) : null,
+        salary: salary ?? 0,
         active: !!active,
         passwordHash,
         mustChangePwd: !!mustChangePwd,
@@ -285,6 +292,7 @@ export async function POST(request: NextRequest) {
           roleName: employee.role?.name ?? null,
           contractType: employee.contractType,
           hireDate: employee.hireDate?.toISOString() ?? null,
+          salary: employee.salary ?? null,
           active: employee.active,
           mustChangePwd: employee.mustChangePwd,
           certificateCount: employee._count.certificates,

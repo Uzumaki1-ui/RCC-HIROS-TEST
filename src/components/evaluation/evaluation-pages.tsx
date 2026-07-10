@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
-  Plus, Search, ArrowLeft, Save, AlertTriangle, Power, ClipboardList,
+  Plus, Search, ArrowLeft, Save, AlertTriangle, ClipboardList,
   CheckCircle2, FileText, Info, Trash2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -62,7 +62,7 @@ interface Evaluation {
   evaluatorId: string;
   evaluator: { id: string; name: string } | null;
   employeeId: string;
-  employee: { id: string; name: string; employeeId: string; groupId: string | null } | null;
+  employee: { id: string; name: string; employeeId: string; groupId: string | null; group: { name: string } | null; role: { name: string } | null } | null;
   status: "draft" | "submitted" | "acknowledged";
   totalScore: number | null;
   remarks: string | null;
@@ -469,7 +469,7 @@ export function SubmitEvaluationPage() {
       try {
         const [p, e, f] = await Promise.all([
           apiFetch<{ periods: EvalPeriod[] }>("/api/evaluation-periods"),
-          apiFetch<{ employees: EmployeeBrief[] }>("/api/employees?active=true"),
+          apiFetch<{ employees: EmployeeBrief[] }>("/api/employees?active=true&scope=evaluation"),
           apiFetch<{ forms: EvalForm[] }>("/api/evaluation-forms"),
         ]);
         const openPeriods = (p.periods ?? []).filter((x) => x.status === "open");
@@ -631,7 +631,7 @@ export function SubmitEvaluationPage() {
       {/* Selectors */}
       <div className="bg-rcc-surface rounded-lg border border-rcc-border p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Evaluation Period" required>
+          <Field label="Evaluation Period" required hint={!selectedPeriod ? "Select an open period to begin scoring." : undefined}>
             <select value={periodId} onChange={(e) => setPeriodId(e.target.value)} className={inputClass}>
               <option value="">— Select period —</option>
               {periods.map((p) => (
@@ -650,11 +650,6 @@ export function SubmitEvaluationPage() {
             </select>
           </Field>
         </div>
-        {!selectedPeriod && (
-          <p className="text-xs text-rcc-text-muted">
-            Select an open period to begin scoring.
-          </p>
-        )}
       </div>
 
       {/* Criteria */}
@@ -753,7 +748,6 @@ export function SubmitEvaluationPage() {
 
 export function EvaluationResultsPage() {
   const { has, scopeAllEvaluation, isSystemAdmin } = usePermissions();
-  const { setCurrentPage } = useAuthStore();
 
   // Determine available tabs based on permissions
   const tabs = useMemo(() => {
@@ -789,7 +783,7 @@ export function EvaluationResultsPage() {
     );
   }
 
-  return (
+    return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -798,14 +792,6 @@ export function EvaluationResultsPage() {
             Browse submitted evaluations across the available scopes.
           </p>
         </div>
-        {has("evaluation.manage_forms") && (
-          <button
-            onClick={() => setCurrentPage("evaluation", "manage")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rcc-text-secondary bg-rcc-surface border border-rcc-border rounded-md hover:bg-rcc-bg transition-colors"
-          >
-            <Power className="h-3.5 w-3.5" /> Manage Periods
-          </button>
-        )}
       </div>
 
       {/* Tabs */}
@@ -874,6 +860,12 @@ function ResultsTable({ scope }: { scope: string }) {
                 {showEmployee && (
                   <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Employee</th>
                 )}
+                {showEmployee && (
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Department</th>
+                )}
+                {showEmployee && (
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Role</th>
+                )}
                 {showEvaluator && (
                   <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Evaluator</th>
                 )}
@@ -885,9 +877,9 @@ function ResultsTable({ scope }: { scope: string }) {
             </thead>
             <tbody className="divide-y divide-rcc-border">
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
               ) : currentData.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">No evaluations found.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-rcc-text-muted">No evaluations found.</td></tr>
               ) : (
                 currentData.map((ev) => (
                   <tr key={ev.id} className="hover:bg-rcc-bg/30 transition-colors">
@@ -899,6 +891,12 @@ function ResultsTable({ scope }: { scope: string }) {
                           <p className="text-xs text-rcc-text-muted font-mono">{ev.employee?.employeeId ?? ""}</p>
                         </div>
                       </td>
+                    )}
+                    {showEmployee && (
+                      <td className="px-4 py-3 text-rcc-text-secondary text-sm">{ev.employee?.group?.name ?? "\u2014"}</td>
+                    )}
+                    {showEmployee && (
+                      <td className="px-4 py-3 text-rcc-text-secondary text-sm">{ev.employee?.role?.name ?? "\u2014"}</td>
                     )}
                     {showEvaluator && (
                       <td className="px-4 py-3 text-rcc-text-secondary">{ev.evaluator?.name ?? "—"}</td>
@@ -1020,6 +1018,39 @@ function EvaluationDetailsModal({ evaluation, onClose }: { evaluation: Evaluatio
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Unified EvaluationPage — all features in one page, gated by permissions
+// ═══════════════════════════════════════════════════════════════
+
+export function EvaluationPage() {
+  const { has, scopeAllEvaluation, isSystemAdmin } = usePermissions();
+
+  const canSubmit = has("evaluation.submit");
+  const canViewResults = has("evaluation.view") || has("evaluation.view_results") || scopeAllEvaluation || isSystemAdmin;
+  const canManage = has("evaluation.manage_forms");
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-rcc-text-primary">Performance Evaluation</h1>
+        <p className="text-sm text-rcc-text-muted mt-0.5">
+          Submit evaluations, view results, and manage evaluation periods.
+        </p>
+      </div>
+
+      {/* 1. Submit Evaluation Section */}
+      {canSubmit && <SubmitEvaluationPage />}
+
+      {/* 2. Evaluation Results Section */}
+      {canViewResults && <EvaluationResultsPage />}
+
+      {/* 3. Manage Periods Section */}
+      {canManage && <EvaluationFormsPage />}
     </div>
   );
 }

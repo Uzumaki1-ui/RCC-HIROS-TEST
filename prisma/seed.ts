@@ -81,6 +81,7 @@ const HR_PERMS = [
   "attendance.edit",
   "attendance.edit_on_premise",
   "evaluation.view",
+  "evaluation.submit",
   "evaluation.manage_forms",
   "evaluation.reset",
   "leave.request",
@@ -137,6 +138,18 @@ const PROFESSOR_PERMS = [
   "attendance.view",
   "leave.request",
   "evaluation.view_results",
+];
+
+const HR_ASSISTANT_PERMS = [
+  "dashboard.view",
+  "profiling.view",
+  "attendance.view",
+  "attendance.clock_in",
+  "evaluation.view",
+  "evaluation.view_results",
+  "leave.request",
+  "reports.view",
+  "groups.view",
 ];
 
 // ───────────────────────────────────────────────────────────────
@@ -348,25 +361,26 @@ async function main() {
     PROFESSOR_PERMS
   );
 
+  const hrAssistant = await upsertRole(
+    "HR Assistant",
+    "HR support staff — handles basic HR tasks, cannot submit evaluations",
+    {
+      scopeAllProfiling: false,
+      scopeAllEvaluation: false,
+      scopeAllLeave: false,
+      scopeAllReports: false,
+      scopeAllAttendance: false,
+      canSelfApproveLeave: false,
+      isSystem: false,
+    },
+    HR_ASSISTANT_PERMS
+  );
+
   // ═════════════════════════════════════════════════════════════
   // 3. Employees (password = RCC2026!)
   // ═════════════════════════════════════════════════════════════
   console.log("• Creating employees (password: RCC2026!)...");
   const passwordHash = await hash(DEFAULT_PASSWORD, 10);
-
-  // Clear any employees beyond the 6 base accounts (for clean re-seed)
-  await prisma.employee.deleteMany({
-    where: {
-      NOT: [
-        { employeeId: "EMP-0000" },
-        { employeeId: "EMP-0001" },
-        { employeeId: "EMP-0002" },
-        { employeeId: "EMP-0003" },
-        { employeeId: "EMP-0004" },
-        { employeeId: "EMP-0005" },
-      ],
-    },
-  });
 
   const employees = [
     {
@@ -462,7 +476,7 @@ async function main() {
       phone: "+63 917 000 0007",
       gender: "Male",
       groupId: hr.id,
-      roleId: hrPersonnel.id,
+      roleId: hrAssistant.id,
       contractType: "Regular",
     },
     {
@@ -988,17 +1002,6 @@ async function main() {
     new Date("2026-03-20T14:30:00.000Z")
   );
 
-  // HR → John (3.80) — submitted last semester
-  await createEvaluation(
-    closedPeriod.id,
-    hrStaffId,
-    hrId,
-    3.8,
-    "Met expectations. Needs improvement in documentation turnaround time.",
-    true,
-    new Date("2026-03-22T10:00:00.000Z")
-  );
-
   // Dean → Maria (4.50) — submitted last semester
   await createEvaluation(
     closedPeriod.id,
@@ -1118,7 +1121,7 @@ async function main() {
     { empId: "EMP-0005", title: "Certified Java Developer", issuer: "Oracle University", certNo: "ORA-JAVA-2024-001", issueDate: new Date("2024-03-15") },
     { empId: "EMP-0005", title: "Teaching Excellence Award", issuer: "RCC Academic Council", certNo: "RCC-TEA-2025-042", issueDate: new Date("2025-06-20") },
     { empId: "EMP-0005", title: "Data Science Fundamentals", issuer: "Coursera / IBM", certNo: "COU-DS-2025-889", issueDate: new Date("2025-01-10") },
-    // John (HR Staff)
+    // John (HR Assistant)
     { empId: "EMP-0007", title: "Certified HR Associate", issuer: "HR Philippines", certNo: "HRP-CHRA-2024-556", issueDate: new Date("2024-08-01") },
     { empId: "EMP-0007", title: "Labor Law Seminar 2025", issuer: "DOLE Regional Office", certNo: "DOLE-LLS-2025-112", issueDate: new Date("2025-11-05") },
     // Maria (Professor)
@@ -1173,7 +1176,7 @@ async function main() {
   console.log("EMP-0004 / leander.pamintuan@rcc.edu.ph  → IT Staff");
   console.log("EMP-0005 / darwin.medina@rcc.edu.ph      → Professor");
   console.log("EMP-0006 / maria.santos@rcc.edu.ph       → Professor");
-  console.log("EMP-0007 / john.delacruz@rcc.edu.ph      → HR Personnel");
+  console.log("EMP-0007 / john.delacruz@rcc.edu.ph      → HR Assistant");
   console.log("EMP-0008 / ana.gonzales@rcc.edu.ph       → Accountant");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("");

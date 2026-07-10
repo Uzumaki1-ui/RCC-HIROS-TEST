@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
@@ -24,13 +24,8 @@ export function DynamicSidebar() {
       else if (has("leave.request")) setCurrentPage("leave", "mine");
       else setCurrentPage("leave");
     } else if (m.key === "evaluation") {
-      // Priority: if user can submit evaluations (Dean), go to submit
-      // If user can only view (HR, Professor), go to results
-      // If user can manage forms but not submit (HR), go to manage
-      if (has("evaluation.submit")) setCurrentPage("evaluation", "submit");
-      else if (has("evaluation.view") || has("evaluation.view_results")) setCurrentPage("evaluation", "results");
-      else if (has("evaluation.manage_forms")) setCurrentPage("evaluation", "manage");
-      else setCurrentPage("evaluation");
+      // Unified page — all features gated by permissions within the page
+      setCurrentPage("evaluation");
     } else if (m.key === "attendance") {
       if (has("attendance.view")) setCurrentPage("attendance", "all");
       else setCurrentPage("attendance");

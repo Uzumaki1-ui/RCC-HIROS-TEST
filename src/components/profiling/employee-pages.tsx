@@ -34,6 +34,7 @@ interface Employee {
   gender: string | null;
   contractType: string;
   hireDate: string | null;
+  salary: number | null;
   active: boolean;
   groupId: string | null;
   groupName: string | null;
@@ -334,6 +335,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
   const [roleId, setRoleId] = useState("");
   const [contractType, setContractType] = useState("Regular");
   const [hireDate, setHireDate] = useState("");
+  const [salary, setSalary] = useState("");
   const [active, setActive] = useState(true);
 
   // Login credentials (create-only)
@@ -377,6 +379,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
         setRoleId(e.roleId ?? "");
         setContractType(e.contractType ?? "Regular");
         setHireDate(e.hireDate ? e.hireDate.slice(0, 10) : "");
+        setSalary(e.salary != null ? String(e.salary) : "");
         setActive(e.active);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load employee.");
@@ -415,6 +418,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
         roleId: roleId || null,
         contractType,
         hireDate: hireDate || null,
+        salary: salary ? parseFloat(salary) : 0,
         active,
       };
       if (mode === "create") {
@@ -538,6 +542,9 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
           </Field>
           <Field label="Hire Date">
             <input type="date" value={hireDate} onChange={(e) => setHireDate(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Monthly Salary" hint="₱ PHP">
+            <input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} min="0" step="0.01" className={inputClass} />
           </Field>
           <label
             className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-colors md:col-span-2 ${
@@ -876,6 +883,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
             <InfoItem icon={Briefcase} label="Contract" value={employee.contractType} />
             <InfoItem icon={Calendar} label="Hire Date" value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null} />
             <InfoItem icon={Building2} label="Group" value={employee.group ? `${employee.group.name} (${employee.group.code})` : null} />
+            <InfoItem icon={Briefcase} label="Monthly Salary" value={employee.salary != null ? `₱${Number(employee.salary).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null} />
           </dl>
         </div>
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { EmployeeListPage, EmployeeFormPage, EmployeeProfilePage } from "@/components/profiling/employee-pages";
 import { AttendanceListPage, PremisesSettingsPage } from "@/components/attendance/attendance-pages";
 import { MyLeavePage, LeaveApprovalPage, LeaveTypeManagementPage, AllLeavePage } from "@/components/leave/leave-pages";
-import { EvaluationFormsPage, SubmitEvaluationPage, EvaluationResultsPage } from "@/components/evaluation/evaluation-pages";
+import { EvaluationPage } from "@/components/evaluation/evaluation-pages";
 import { ReportsPage } from "@/components/reports/report-pages";
 import { RoleListPage, RoleFormPage } from "@/components/admin/role-pages";
 import { GroupListPage, GroupFormPage } from "@/components/admin/group-pages";
@@ -76,12 +76,10 @@ export default function HomePage() {
         <PermissionGuard require="leave.request" fallback={<PermissionDenied />}><MyLeavePage /></PermissionGuard>
       ); break;
     case "evaluation":
-      content = currentSubpage === "manage" ? (
-        <PermissionGuard require="evaluation.manage_forms" fallback={<PermissionDenied />}><EvaluationFormsPage /></PermissionGuard>
-      ) : currentSubpage === "submit" ? (
-        <PermissionGuard require="evaluation.submit" fallback={<PermissionDenied />}><SubmitEvaluationPage /></PermissionGuard>
-      ) : (
-        <PermissionGuard any={["evaluation.view", "evaluation.view_results", "evaluation.submit"]} fallback={<PermissionDenied />}><EvaluationResultsPage /></PermissionGuard>
+      content = (
+        <PermissionGuard any={["evaluation.view", "evaluation.view_results", "evaluation.submit", "evaluation.manage_forms"]} fallback={<PermissionDenied />}>
+          <EvaluationPage />
+        </PermissionGuard>
       ); break;
     case "reports":
       content = <PermissionGuard require="reports.view" fallback={<PermissionDenied />}><ReportsPage /></PermissionGuard>; break;

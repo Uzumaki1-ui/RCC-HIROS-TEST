@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requirePermission } from "@/lib/auth-token";
 
@@ -19,6 +19,8 @@ const EVALUATION_INCLUDE = {
       lastName: true,
       employeeId: true,
       groupId: true,
+      group: { select: { name: true } },
+      role: { select: { name: true } },
     },
   },
   form: { select: { id: true, name: true } },
