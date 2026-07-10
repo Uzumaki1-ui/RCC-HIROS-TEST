@@ -10,3 +10,9 @@ tsconfig.tsbuildinfo
 .env
 db/
 uploads/
+
+# Worklog
+/worklog/
+
+# OpenCode config
+/.opencode/
