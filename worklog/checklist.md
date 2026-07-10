@@ -94,3 +94,8 @@
 - [x] Move "Select an open period" into Period field hint (flexbox alignment fix)
 - [x] Remove Manage Periods button (no longer needed)
 - [x] Clean up unused imports (Power, setCurrentPage)
+
+### Part I ? Role Page Layout Fixes
+- [x] RoleListPage: Changed to 1-column stack (space-y-4)
+- [x] RoleFormPage: Permission matrix changed to 2 columns (grid-cols-2)
+- [x] RoleFormPage: Container widened to max-w-6xl

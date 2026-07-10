@@ -97,3 +97,31 @@ px tsx prisma/seed.ts succeeds
 | src/components/evaluation/evaluation-pages.tsx | Added `EvaluationPage` component; submit fetch uses `scope=evaluation`; flexbox alignment fix; removed Manage Periods button; cleaned up unused `Power`/`setCurrentPage` |
 | src/components/shared/dynamic-sidebar.tsx | Simplified evaluation sidebar routing to unified page |
 | worklog/session-07.md | This file |
+
+### 10. Role List ? 1 Column, Permission Matrix ? 2 Columns
+
+**Problem:** Role list (viewing) had a 2-column grid pushing header and search side-by-side. User wanted it stacked vertically (1 column). Permission matrix in the role form (editing/adding) needed 2 columns instead of 1 for better space usage.
+
+**Changes:**
+- `src/components/admin/role-pages.tsx`:
+  - **RoleListPage**: Changed `grid grid-cols-1 md:grid-cols-2 gap-4` ? `space-y-4` (1 column stack)
+  - **RoleFormPage**: Changed permission matrix container from `space-y-4` ? `grid grid-cols-1 md:grid-cols-2 gap-4` (2 columns)
+  - **RoleFormPage**: Widened form container from `max-w-5xl` ? `max-w-6xl` to accommodate 2 columns
+
+| Page | Before | After |
+|------|--------|-------|
+| Role List (view) | 2-column grid | 1-column stack |
+| Role Form ? Permission Matrix | 1 column | 2 columns |
+
+## Files Changed (Complete Session 07)
+
+| File | Changes |
+|------|---------|
+| prisma/seed.ts | HR_PERMS, HR_ASSISTANT_PERMS, hrAssistant role, John's role, removed HR?John eval, removed deleteMany block, display labels |
+| src/app/api/evaluations/route.ts | Added group/role to EVALUATION_INCLUDE and serializeEvaluation |
+| src/app/api/employees/route.ts | Added `scope` query param; scoping uses `scopeAllEvaluation` when `scope=evaluation` |
+| src/app/page.tsx | Consolidated evaluation routing to single `<EvaluationPage />` |
+| src/components/evaluation/evaluation-pages.tsx | Added `EvaluationPage` component; submit fetch uses `scope=evaluation`; flexbox alignment fix; removed Manage Periods button; cleaned up unused `Power`/`setCurrentPage` |
+| src/components/shared/dynamic-sidebar.tsx | Simplified evaluation sidebar routing to unified page |
+| src/components/admin/role-pages.tsx | RoleListPage: 1 column; RoleFormPage: 2-column permission matrix + wider container |
+| worklog/session-07.md | This file |

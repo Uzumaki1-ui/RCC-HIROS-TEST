@@ -514,7 +514,7 @@ export function RoleFormPage({ mode, roleId }: { mode: "create" | "edit"; roleId
   }
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-6xl">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -639,7 +639,7 @@ export function RoleFormPage({ mode, roleId }: { mode: "create" | "edit"; roleId
             Toggle individual permissions, or use &ldquo;select all&rdquo; per module.
           </p>
         </div>
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {PERMISSIONS_BY_MODULE.map((mod) => {
             const all = mod.permissions.map((p) => p.id);
             const granted = all.filter((id) => perms.has(id));
