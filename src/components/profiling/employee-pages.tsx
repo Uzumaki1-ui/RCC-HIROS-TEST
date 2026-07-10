@@ -797,12 +797,6 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   if (error && !employee) {
     return (
       <div className="space-y-4">
-        <button
-          onClick={() => setCurrentPage("profiling")}
-          className="inline-flex items-center gap-1 text-sm text-rcc-text-secondary hover:text-rcc-primary transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to employees
-        </button>
         <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-rcc-error">{error}</div>
       </div>
     );
@@ -815,14 +809,6 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setCurrentPage("profiling")}
-          className="inline-flex items-center gap-1 text-sm text-rcc-text-secondary hover:text-rcc-primary transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to employees
-        </button>
-      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-rcc-error">{error}</div>
