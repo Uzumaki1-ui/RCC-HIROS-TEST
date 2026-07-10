@@ -514,7 +514,7 @@ export function RoleFormPage({ mode, roleId }: { mode: "create" | "edit"; roleId
   }
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-full">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
