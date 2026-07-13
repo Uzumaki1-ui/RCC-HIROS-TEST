@@ -677,6 +677,29 @@ export function SubmitEvaluationPage() {
         </div>
       </div>
 
+      {/* Rating legend */}
+      {selectedPeriod && (
+        <div className="bg-rcc-surface rounded-lg border border-rcc-border px-5 py-3 flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
+          {[
+            { n: 1, label: "Poor", color: "bg-red-100 text-red-700 border-red-200" },
+            { n: 2, label: "Fair", color: "bg-amber-100 text-amber-700 border-amber-200" },
+            { n: 3, label: "Satisfactory", color: "bg-blue-100 text-blue-700 border-blue-200" },
+            { n: 4, label: "Very Good", color: "bg-green-100 text-green-700 border-green-200" },
+            { n: 5, label: "Excellent", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+          ].map((r) => (
+            <span
+              key={r.n}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${r.color}`}
+            >
+              <span className="w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold bg-white/60">
+                {r.n}
+              </span>
+              {r.label}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Criteria — collapsible sections */}
       {selectedPeriod && activeForm && (
         <div className="space-y-4">
@@ -833,15 +856,6 @@ export function SubmitEvaluationPage() {
             />
           </div>
 
-          {/* Rating legend */}
-          <div className="flex items-center gap-4 text-[10px] text-rcc-text-muted px-1">
-            <span>1 — Poor</span>
-            <span>2 — Fair</span>
-            <span>3 — Satisfactory</span>
-            <span>4 — Very Good</span>
-            <span>5 — Excellent</span>
-          </div>
-
           {/* Actions */}
           <div className="flex justify-end gap-2">
             <button
@@ -876,9 +890,6 @@ export function EvaluationResultsPage() {
   // Determine available tabs based on permissions
   const tabs = useMemo(() => {
     const out: { key: string; label: string; scope: string }[] = [];
-    if (has("evaluation.submit")) {
-      out.push({ key: "submitted_by_me", label: "Submitted by Me", scope: "submitted_by_me" });
-    }
     if (has("evaluation.view_results")) {
       out.push({ key: "for_me", label: "For Me", scope: "for_me" });
     }
@@ -1106,13 +1117,39 @@ function EvaluationDetailsModal({ evaluation, onClose }: { evaluation: Evaluatio
             </div>
           </div>
 
-          {/* Evaluation Remarks */}
-          <div>
-            <h4 className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide mb-2">Evaluation Remarks</h4>
-            <div className="bg-rcc-bg/40 border border-rcc-border rounded-md p-3 text-sm text-rcc-text-secondary whitespace-pre-wrap min-h-[80px]">
-              {evaluation.remarks || <span className="text-rcc-text-muted italic">No remarks provided.</span>}
-            </div>
-          </div>
+          {/* Textual Evaluation A & B */}
+          {evaluation.remarks && (() => {
+            const sep = "\n\n---\n\n";
+            const raw = evaluation.remarks ?? "";
+            let partA = raw;
+            let partB = "";
+            if (raw.includes(sep)) {
+              const parts = raw.split(sep);
+              partA = parts[0] ?? "";
+              partB = parts[1] ?? "";
+            }
+            return (
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide">Textual Evaluation</h4>
+                {partA && (
+                  <div>
+                    <p className="text-[10px] text-rcc-text-secondary font-medium mb-1">(A) About the teacher</p>
+                    <div className="bg-rcc-bg/40 border border-rcc-border rounded-md p-3 text-sm text-rcc-text-secondary whitespace-pre-wrap">
+                      {partA}
+                    </div>
+                  </div>
+                )}
+                {partB && (
+                  <div>
+                    <p className="text-[10px] text-rcc-text-secondary font-medium mb-1">(B) Recommendations</p>
+                    <div className="bg-rcc-bg/40 border border-rcc-border rounded-md p-3 text-sm text-rcc-text-secondary whitespace-pre-wrap">
+                      {partB}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Responses — grouped by category */}
           {evaluation.responses.length > 0 && (

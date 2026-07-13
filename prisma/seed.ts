@@ -1098,13 +1098,24 @@ async function main() {
     submitted: boolean,
     submittedDate?: Date
   ) {
-    // Build scores that average to targetAvg
-    const scores = createdCriteria.map((_, i) => {
-      // Alternate around targetAvg
-      const base = Math.floor(targetAvg);
-      const mod = i % 2 === 0 ? 1 : -1;
-      return Math.min(5, Math.max(1, targetAvg + mod * 0.5));
-    });
+    // Generate whole number scores (1-5) averaging to targetAvg
+    const count = createdCriteria.length;
+    const targetSum = Math.round(targetAvg * count);
+    const scores: number[] = Array(count).fill(Math.floor(targetAvg));
+    let currentSum = Math.floor(targetAvg) * count;
+    while (currentSum < targetSum) {
+      const idx = Math.floor(Math.random() * count);
+      if (scores[idx] < 5) { scores[idx]++; currentSum++; }
+    }
+    while (currentSum > targetSum) {
+      const idx = Math.floor(Math.random() * count);
+      if (scores[idx] > 1) { scores[idx]--; currentSum--; }
+    }
+    // Shuffle to avoid first criteria always being the same value
+    for (let i = scores.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [scores[i], scores[j]] = [scores[j], scores[i]];
+    }
 
     const totalWeight = createdCriteria.reduce((sum, c) => sum + c.weight, 0);
     const weightedSum = createdCriteria.reduce(
@@ -1143,7 +1154,7 @@ async function main() {
     profId,
     deanId,
     4.2,
-    "Good performance. Showed improvement in classroom management. Continue developing student engagement strategies.",
+    "I have observed consistent improvement in classroom management and teaching delivery. The use of visual aids has made complex topics more accessible.\n\n---\n\nRecommend that the school invest in more modern teaching equipment such as projectors and smart boards to further enhance learning.",
     true,
     new Date("2026-03-20T14:30:00.000Z")
   );
@@ -1154,7 +1165,7 @@ async function main() {
     prof2Id,
     deanId,
     4.5,
-    "Excellent performance. Outstanding student engagement and innovative teaching methods.",
+    "Excellent teaching skills. Students are highly engaged and perform well. Maria goes above and beyond in preparing lesson materials.\n\n---\n\nThe faculty room could use better ventilation and more comfortable seating for collaborative work.",
     true,
     new Date("2026-03-25T11:00:00.000Z")
   );
@@ -1167,7 +1178,7 @@ async function main() {
     profId,
     deanId,
     4.5,
-    "Strong performance overall. Continue developing student engagement strategies.",
+    "Darwin continues to demonstrate strong instructional skills. Student feedback has been consistently positive this semester.\n\n---\n\nSuggest allocating more budget for faculty development seminars and workshops.",
     true,
     dayTime(-15, 14, 30)
   );
