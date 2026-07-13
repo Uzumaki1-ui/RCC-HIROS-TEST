@@ -60,6 +60,8 @@ const PERMISSION_LABELS: Record<string, { label: string; description: string }> 
   "profiling.create": { label: "Create Employees", description: "Add new employee records." },
   "profiling.edit": { label: "Edit Employees", description: "Update employee fields, certs, and files." },
   "profiling.delete": { label: "Deactivate Employees", description: "Soft-delete an employee record." },
+  "profile.selfEdit": { label: "Edit Own Profile", description: "Edit own basic profile fields (email, phone, address, birthday, gender)." },
+  "profile.editAll": { label: "Edit All Profiles", description: "Edit any employee's basic profile fields inline." },
 
   "attendance.view": { label: "View Attendance", description: "See attendance records within scope." },
   "attendance.clock_in": { label: "Clock In / Out", description: "Submit clock-in / clock-out events." },
@@ -71,6 +73,7 @@ const PERMISSION_LABELS: Record<string, { label: string; description: string }> 
   "evaluation.submit": { label: "Submit Evaluations", description: "Create and submit evaluation forms." },
   "evaluation.view_results": { label: "View Results (For Me)", description: "See evaluations written about self." },
   "evaluation.manage_forms": { label: "Manage Forms & Periods", description: "Create evaluation forms, periods, criteria." },
+  "evaluation.reset": { label: "Reset Evaluations", description: "Reset evaluation submissions for a new period." },
 
   "leave.request": { label: "Request Leave", description: "Submit own leave requests." },
   "leave.approve_l1": { label: "Approve L1", description: "First-level approval of leave." },
@@ -97,7 +100,7 @@ const PERMISSIONS_BY_MODULE: PermissionModule[] = [
   },
   {
     label: "Employee Profiling",
-    permissions: ["profiling.view", "profiling.view_inactive", "profiling.create", "profiling.edit", "profiling.delete"],
+    permissions: ["profiling.view", "profiling.view_inactive", "profiling.create", "profiling.edit", "profiling.delete", "profile.selfEdit", "profile.editAll"],
   },
   {
     label: "Attendance",
@@ -105,7 +108,7 @@ const PERMISSIONS_BY_MODULE: PermissionModule[] = [
   },
   {
     label: "Performance Evaluation",
-    permissions: ["evaluation.view", "evaluation.submit", "evaluation.view_results", "evaluation.manage_forms"],
+    permissions: ["evaluation.view", "evaluation.submit", "evaluation.view_results", "evaluation.manage_forms", "evaluation.reset"],
   },
   {
     label: "Leave Management",
