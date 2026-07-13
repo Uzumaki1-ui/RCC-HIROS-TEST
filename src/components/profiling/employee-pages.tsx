@@ -940,7 +940,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {has("profiling.edit") && (
+            {has("profiling.edit") && employeeId !== user?.id && (
               <button
                 onClick={() => setCurrentPage("profiling", `edit:${employee.id}`)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
