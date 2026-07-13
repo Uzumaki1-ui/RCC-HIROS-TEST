@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth-token";
+import { requirePermission, requireAnyPermission } from "@/lib/auth-token";
 import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -8,22 +8,13 @@ import path from "path";
 // ═══════════════════════════════════════════════════════════════
 // /api/employees/[id]/files
 // GET   profiling.view  — list files with uploader info
-// POST  profiling.edit  — multipart upload (max 25MB, PDF/images/Office)
+// POST  profiling.edit|profile.*  — multipart upload (max 10MB, PDF only)
 // ═══════════════════════════════════════════════════════════════
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const ALLOWED_MIME = new Set([
   "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/bmp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
 
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads", "employees");
@@ -70,6 +61,7 @@ export async function GET(
           ? `${f.uploadedBy.firstName} ${f.uploadedBy.lastName}`.trim()
           : null,
         createdAt: f.createdAt.toISOString(),
+        uploadedAt: f.uploadedAt.toISOString(),
       })),
     });
   } catch (error) {
@@ -86,10 +78,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requirePermission(request, "profiling.edit");
+    const auth = await requireAnyPermission(request, ["profiling.edit", "profile.editAll", "profile.selfEdit"]);
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
+
+    // Self-edit: only allow upload to own profile
+    const isSelfEdit = auth.user.id === id && auth.user.permissions.includes("profile.selfEdit");
+    const isAdmin = auth.user.permissions.includes("profiling.edit") || auth.user.permissions.includes("profile.editAll");
+    if (!isAdmin && !isSelfEdit) {
+      return NextResponse.json(
+        { error: "Forbidden — insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
     const employee = await db.employee.findUnique({
       where: { id },
       select: { id: true },
@@ -114,14 +117,14 @@ export async function POST(
 
     if (!ALLOWED_MIME.has(file.type)) {
       return NextResponse.json(
-        { error: `File type not allowed: ${file.type || "unknown"}` },
+        { error: "Only PDF files are allowed" },
         { status: 400 }
       );
     }
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File exceeds 25MB limit" },
+        { error: "File exceeds 10MB limit" },
         { status: 400 }
       );
     }
@@ -146,6 +149,7 @@ export async function POST(
         fileSize: file.size,
         description: description?.trim() || null,
         uploadedById: auth.user.id,
+        uploadedAt: new Date(),
       },
     });
 

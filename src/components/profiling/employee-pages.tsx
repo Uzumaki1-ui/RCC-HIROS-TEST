@@ -72,6 +72,7 @@ interface EmployeeFile {
   description: string | null;
   uploadedBy: string | null;
   createdAt: string;
+  uploadedAt: string;
 }
 
 const CONTRACT_TYPES = ["Regular", "Contractual", "Part-Time"];
@@ -661,6 +662,16 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   const [uploading, setUploading] = useState(false);
   const [fileDesc, setFileDesc] = useState("");
 
+  // Inline edit mode
+  const canSelfEdit = employeeId === user?.id && has("profile.selfEdit");
+  const canEditAll = has("profile.editAll");
+  const canInlineEdit = canSelfEdit || canEditAll;
+  const canManageFiles = has("profiling.edit") || has("profile.editAll") || canSelfEdit;
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ email: "", phone: "", address: "", birthday: "", gender: "" });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
   const loadEmployee = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -737,6 +748,8 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.type !== "application/pdf") { setError("Only PDF files are allowed."); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("File exceeds 10MB limit."); return; }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -786,6 +799,71 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed.");
     }
+  };
+
+  // ── Inline edit ──────────────────────────────────────────────
+  const startEditing = () => {
+    setEditForm({
+      email: employee?.email ?? "",
+      phone: employee?.phone ?? "",
+      address: employee?.address ?? "",
+      birthday: employee?.birthday ? employee.birthday.slice(0, 10) : "",
+      gender: employee?.gender ?? "",
+    });
+    setEditError(null);
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setEditError(null);
+  };
+
+  const saveEditing = async () => {
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const body: Record<string, string | null> = {};
+      if (editForm.email.trim()) body.email = editForm.email.trim();
+      if (editForm.phone !== employee?.phone) body.phone = editForm.phone.trim() || null;
+      if (editForm.address !== employee?.address) body.address = editForm.address.trim() || null;
+      if (editForm.birthday !== (employee?.birthday ? employee.birthday.slice(0, 10) : "")) body.birthday = editForm.birthday || null;
+      if (editForm.gender !== employee?.gender) body.gender = editForm.gender || null;
+      await apiFetch(`/api/employees/${employeeId}`, { method: "PATCH", body: JSON.stringify(body) });
+      setEditing(false);
+      loadEmployee();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to save.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // ── Reupload file ────────────────────────────────────────────
+  const [reuploading, setReuploading] = useState<string | null>(null);
+
+  const handleReupload = async (fileId: string, oldName: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf";
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      if (f.type !== "application/pdf") { setError("Only PDF files are allowed."); return; }
+      if (f.size > 10 * 1024 * 1024) { setError("File exceeds 10MB limit."); return; }
+      setReuploading(fileId);
+      try {
+        const fd = new FormData();
+        fd.append("file", f);
+        await apiFetch(`/api/employees/${employeeId}/files/${fileId}`, { method: "PUT", body: fd, skipJsonHeader: true });
+        loadEmployee();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Reupload failed.");
+      } finally {
+        setReuploading(null);
+      }
+    };
+    input.click();
   };
 
   if (loading) {
@@ -862,14 +940,24 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
               </span>
             </div>
           </div>
-          {has("profiling.edit") && (
-            <button
-              onClick={() => setCurrentPage("profiling", `edit:${employee.id}`)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
-            >
-              <Pencil className="h-4 w-4" /> Edit
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {has("profiling.edit") && (
+              <button
+                onClick={() => setCurrentPage("profiling", `edit:${employee.id}`)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
+              >
+                <Pencil className="h-4 w-4" /> Edit
+              </button>
+            )}
+            {canInlineEdit && !editing && (
+              <button
+                onClick={startEditing}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors"
+              >
+                <Pencil className="h-4 w-4" /> Edit Profile
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -877,20 +965,56 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Personal Info (2/3) */}
         <div className="lg:col-span-2 bg-rcc-surface rounded-lg border border-rcc-border p-6">
-          <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide mb-4">
-            Personal Information
-          </h2>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-            <InfoItem icon={Mail} label="Email" value={employee.email} />
-            <InfoItem icon={Phone} label="Phone" value={employee.phone} />
-            <InfoItem icon={MapPin} label="Address" value={employee.address} />
-            <InfoItem icon={Calendar} label="Birthday" value={employee.birthday ? new Date(employee.birthday).toLocaleDateString() : null} />
-            <InfoItem icon={UsersIcon} label="Gender" value={employee.gender} />
-            <InfoItem icon={Briefcase} label="Contract" value={employee.contractType} />
-            <InfoItem icon={Calendar} label="Hire Date" value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null} />
-            <InfoItem icon={Building2} label="Group" value={employee.group ? `${employee.group.name} (${employee.group.code})` : null} />
-            <InfoItem icon={Briefcase} label="Monthly Salary" value={employee.salary != null ? `₱${Number(employee.salary).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null} />
-          </dl>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">
+              Personal Information
+            </h2>
+            {editing && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={cancelEditing}
+                  className="px-3 py-1.5 rounded-md text-sm font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditing}
+                  disabled={editSaving}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Save className="h-3.5 w-3.5" /> {editSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            )}
+          </div>
+          {editError && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-rcc-error">{editError}</div>
+          )}
+          {editing ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+              <EditField icon={Mail} label="Email" type="email" value={editForm.email} onChange={(v) => setEditForm(f => ({ ...f, email: v }))} />
+              <EditField icon={Phone} label="Phone" type="text" value={editForm.phone} onChange={(v) => setEditForm(f => ({ ...f, phone: v }))} />
+              <EditField icon={MapPin} label="Address" type="text" value={editForm.address} onChange={(v) => setEditForm(f => ({ ...f, address: v }))} />
+              <EditField icon={Calendar} label="Birthday" type="date" value={editForm.birthday} onChange={(v) => setEditForm(f => ({ ...f, birthday: v }))} />
+              <SelectField icon={UsersIcon} label="Gender" value={editForm.gender} options={["", "Male", "Female"]} onChange={(v) => setEditForm(f => ({ ...f, gender: v }))} />
+              <InfoItem icon={Briefcase} label="Contract" value={employee.contractType} />
+              <InfoItem icon={Calendar} label="Hire Date" value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null} />
+              <InfoItem icon={Building2} label="Group" value={employee.group ? `${employee.group.name} (${employee.group.code})` : null} />
+              <InfoItem icon={Briefcase} label="Monthly Salary" value={employee.salary != null ? `₱${Number(employee.salary).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null} />
+            </div>
+          ) : (
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+              <InfoItem icon={Mail} label="Email" value={employee.email} />
+              <InfoItem icon={Phone} label="Phone" value={employee.phone} />
+              <InfoItem icon={MapPin} label="Address" value={employee.address} />
+              <InfoItem icon={Calendar} label="Birthday" value={employee.birthday ? new Date(employee.birthday).toLocaleDateString() : null} />
+              <InfoItem icon={UsersIcon} label="Gender" value={employee.gender} />
+              <InfoItem icon={Briefcase} label="Contract" value={employee.contractType} />
+              <InfoItem icon={Calendar} label="Hire Date" value={employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : null} />
+              <InfoItem icon={Building2} label="Group" value={employee.group ? `${employee.group.name} (${employee.group.code})` : null} />
+              <InfoItem icon={Briefcase} label="Monthly Salary" value={employee.salary != null ? `₱${Number(employee.salary).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null} />
+            </dl>
+          )}
         </div>
 
         {/* Certificates (1/3) */}
@@ -955,7 +1079,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
           </h2>
         </div>
 
-        {has("profiling.edit") && (
+        {canManageFiles && (
           <div className="mb-4 border border-dashed border-rcc-border rounded-md p-4 bg-rcc-bg/30">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <label className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors cursor-pointer">
@@ -966,7 +1090,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
                   className="hidden"
                   onChange={handleUploadFile}
                   disabled={uploading}
-                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.doc,.docx,.xls,.xlsx"
+                  accept=".pdf"
                 />
               </label>
               <input
@@ -978,7 +1102,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
               />
             </div>
             <p className="text-xs text-rcc-text-muted mt-2">
-              Max 25MB. Allowed: PDF, images, Word, Excel.
+              Max 10MB. PDF only.
             </p>
           </div>
         )}
@@ -988,9 +1112,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {employee.files.map((f) => {
-              const isImage = f.mimeType.startsWith("image/");
-              const isPdf = f.mimeType === "application/pdf";
-              const Icon = isImage ? ImageIcon : isPdf ? FileText : FileText;
+              const Icon = FileText;
               return (
                 <div key={f.id} className="border border-rcc-border rounded-md p-3 hover:bg-rcc-bg/30 transition-colors">
                   <div className="flex items-start gap-3">
@@ -1003,6 +1125,9 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
                       </p>
                       <p className="text-xs text-rcc-text-muted">
                         {(f.fileSize / 1024).toFixed(1)} KB{f.uploadedBy ? ` · ${f.uploadedBy}` : ""}
+                      </p>
+                      <p className="text-xs text-rcc-text-muted">
+                        Uploaded: {new Date(f.uploadedAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
                       </p>
                       {f.description && (
                         <p className="text-xs text-rcc-text-secondary mt-1 line-clamp-2">{f.description}</p>
@@ -1024,14 +1149,24 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
                     >
                       <Download className="h-3 w-3" /> Download
                     </button>
-                    {has("profiling.edit") && (
-                      <button
-                        onClick={() => handleDeleteFile(f)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-rcc-text-secondary hover:bg-red-50 hover:text-rcc-error transition-colors ml-auto"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                    {canManageFiles && (
+                      <>
+                        <button
+                          onClick={() => handleReupload(f.id, f.originalName)}
+                          disabled={reuploading === f.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-rcc-text-secondary hover:bg-rcc-bg hover:text-rcc-primary transition-colors disabled:opacity-50"
+                          title="Reupload"
+                        >
+                          <Upload className="h-3 w-3" /> {reuploading === f.id ? "..." : "Reupload"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFile(f)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-rcc-text-secondary hover:bg-red-50 hover:text-rcc-error transition-colors ml-auto"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1184,6 +1319,71 @@ function Field({
       </label>
       {children}
       {hint && <p className="text-xs text-rcc-text-muted mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function EditField({
+  icon: Icon,
+  label,
+  type,
+  value,
+  onChange,
+}: {
+  icon: typeof Mail;
+  label: string;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon className="h-4 w-4 text-rcc-text-muted mt-2 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <dt className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide mb-1">{label}</dt>
+        {type === "select" ? (
+          <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40">
+            {["", "Male", "Female"].map((o) => (
+              <option key={o} value={o}>{o || "—"}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full px-3 py-2 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SelectField({
+  icon: Icon,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  icon: typeof Mail;
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon className="h-4 w-4 text-rcc-text-muted mt-2 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <dt className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide mb-1">{label}</dt>
+        <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40">
+          {options.map((o) => (
+            <option key={o} value={o}>{o || "—"}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

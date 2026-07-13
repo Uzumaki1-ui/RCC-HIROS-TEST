@@ -25,6 +25,8 @@ export const PERMISSIONS = [
   "profiling.create",
   "profiling.edit",
   "profiling.delete",
+  "profile.selfEdit",
+  "profile.editAll",
 
   // Attendance
   "attendance.view",

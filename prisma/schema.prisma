@@ -131,6 +131,7 @@ model EmployeeFile {
   description    String?
   uploadedById   String?
   createdAt      DateTime @default(now())
+  uploadedAt     DateTime @default(now())
 
   employee   Employee  @relation("EmployeeFiles", fields: [employeeId], references: [id], onDelete: Cascade)
   uploadedBy Employee? @relation("FilesUploaded", fields: [uploadedById], references: [id])

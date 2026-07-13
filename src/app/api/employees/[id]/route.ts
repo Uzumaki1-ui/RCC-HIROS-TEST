@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requireAuth, requirePermission } from "@/lib/auth-token";
+import { requireAuth, requirePermission, requireAnyPermission } from "@/lib/auth-token";
 
 // ═══════════════════════════════════════════════════════════════
 // /api/employees/[id]
 // GET    profiling.view             — single employee w/ certs + counts
-// PATCH  profiling.edit             — update fields + optional password reset
+// PATCH  profiling.edit|profile.*   — update fields + optional password reset
 // DELETE profiling.delete           — soft-delete (active=false)
 // ═══════════════════════════════════════════════════════════════
 
@@ -126,6 +126,7 @@ export async function GET(
             ? `${f.uploadedBy.firstName} ${f.uploadedBy.lastName}`.trim()
             : null,
           createdAt: f.createdAt.toISOString(),
+          uploadedAt: f.uploadedAt.toISOString(),
         })),
         counts: employee._count,
       },
@@ -144,7 +145,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requirePermission(request, "profiling.edit");
+    // Require either full profiling.edit or profile self-edit permissions
+    const auth = await requireAnyPermission(request, ["profiling.edit", "profile.editAll", "profile.selfEdit"]);
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
@@ -156,101 +158,100 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
-    const {
-      employeeId,
-      firstName,
-      middleName,
-      lastName,
-      email,
-      phone,
-      address,
-      birthday,
-      gender,
-      groupId,
-      roleId,
-      contractType,
-      hireDate,
-      salary,
-      active,
-      password,
-    } = body as {
-      employeeId?: string;
-      firstName?: string;
-      middleName?: string | null;
-      lastName?: string;
-      email?: string;
-      phone?: string | null;
-      address?: string | null;
-      birthday?: string | null;
-      gender?: string | null;
-      groupId?: string | null;
-      roleId?: string | null;
-      contractType?: string;
-      hireDate?: string | null;
-      salary?: number | null;
-      active?: boolean;
-      password?: string;
-    };
+    // Determine edit mode
+    const isAdminEdit = auth.user.permissions.includes("profiling.edit");
+    const isEditAll = auth.user.permissions.includes("profile.editAll");
+    const isSelfEdit = auth.user.id === id && auth.user.permissions.includes("profile.selfEdit");
 
+    if (!isAdminEdit && !isEditAll && !isSelfEdit) {
+      return NextResponse.json(
+        { error: "Forbidden — insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
     const data: Record<string, unknown> = {};
 
-    if (typeof employeeId === "string" && employeeId.trim() && employeeId !== employee.employeeId) {
-      const dup = await db.employee.findUnique({
-        where: { employeeId: employeeId.trim() },
-      });
-      if (dup && dup.id !== id) {
-        return NextResponse.json(
-          { error: "Employee ID already exists" },
-          { status: 409 }
-        );
-      }
-      data.employeeId = employeeId.trim();
-    }
-    if (typeof firstName === "string" && firstName.trim())
-      data.firstName = firstName.trim();
-    if (typeof lastName === "string" && lastName.trim())
-      data.lastName = lastName.trim();
-    if (middleName !== undefined) data.middleName = middleName?.trim() || null;
-    if (typeof email === "string" && email.trim()) {
-      const emailLower = email.trim().toLowerCase();
-      if (emailLower !== employee.email) {
+    // Self-edit / editAll: only basic info fields allowed
+    const canEditAllFields = isAdminEdit;
+
+    if (canEditAllFields) {
+      // Full admin edit — all fields
+      const {
+        employeeId, firstName, middleName, lastName, email, phone, address,
+        birthday, gender, groupId, roleId, contractType, hireDate, salary, active, password,
+      } = body as Record<string, unknown>;
+
+      if (typeof employeeId === "string" && employeeId.trim() && employeeId !== employee.employeeId) {
         const dup = await db.employee.findUnique({
-          where: { email: emailLower },
+          where: { employeeId: employeeId.trim() },
         });
         if (dup && dup.id !== id) {
-          return NextResponse.json(
-            { error: "Email already exists" },
-            { status: 409 }
-          );
+          return NextResponse.json({ error: "Employee ID already exists" }, { status: 409 });
         }
-        data.email = emailLower;
+        data.employeeId = employeeId.trim();
       }
-    }
-    if (phone !== undefined) data.phone = phone?.trim() || null;
-    if (address !== undefined) data.address = address?.trim() || null;
-    if (birthday !== undefined)
-      data.birthday = birthday ? new Date(birthday) : null;
-    if (gender !== undefined) data.gender = gender || null;
-    if (groupId !== undefined) data.groupId = groupId || null;
-    if (roleId !== undefined) data.roleId = roleId || null;
-    if (typeof contractType === "string" && contractType.trim())
-      data.contractType = contractType.trim();
-    if (hireDate !== undefined) data.hireDate = hireDate ? new Date(hireDate) : null;
-    if (salary !== undefined) data.salary = salary ?? null;
-    if (active !== undefined) data.active = !!active;
+      if (typeof firstName === "string" && firstName.trim()) data.firstName = firstName.trim();
+      if (typeof lastName === "string" && lastName.trim()) data.lastName = lastName.trim();
+      if (middleName !== undefined) data.middleName = (middleName as string | null)?.trim() || null;
+      if (typeof email === "string" && email.trim()) {
+        const emailLower = email.trim().toLowerCase();
+        if (emailLower !== employee.email) {
+          const dup = await db.employee.findUnique({ where: { email: emailLower } });
+          if (dup && dup.id !== id) {
+            return NextResponse.json({ error: "Email already exists" }, { status: 409 });
+          }
+          data.email = emailLower;
+        }
+      }
+      if (phone !== undefined) data.phone = (phone as string | null)?.trim() || null;
+      if (address !== undefined) data.address = (address as string | null)?.trim() || null;
+      if (birthday !== undefined) data.birthday = birthday ? new Date(birthday as string) : null;
+      if (gender !== undefined) data.gender = (gender as string | null) || null;
+      if (groupId !== undefined) data.groupId = (groupId as string | null) || null;
+      if (roleId !== undefined) data.roleId = (roleId as string | null) || null;
+      if (typeof contractType === "string" && contractType.trim()) data.contractType = contractType.trim();
+      if (hireDate !== undefined) data.hireDate = hireDate ? new Date(hireDate as string) : null;
+      if (salary !== undefined) data.salary = (salary as number | null) ?? null;
+      if (active !== undefined) data.active = !!active;
 
-    // Optional password reset
-    if (password !== undefined) {
-      if (typeof password !== "string" || password.length < 8) {
-        return NextResponse.json(
-          { error: "Password must be at least 8 characters" },
-          { status: 400 }
-        );
+      if (password !== undefined) {
+        if (typeof password !== "string" || password.length < 8) {
+          return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+        }
+        const salt = await bcrypt.genSalt(12);
+        data.passwordHash = await bcrypt.hash(password, salt);
+        data.mustChangePwd = true;
       }
-      const salt = await bcrypt.genSalt(12);
-      data.passwordHash = await bcrypt.hash(password, salt);
-      data.mustChangePwd = true;
+    } else {
+      // Self-edit / editAll mode — only basic info
+      const SELF_EDITABLE = new Set(["email", "phone", "address", "birthday", "gender"]);
+      for (const key of SELF_EDITABLE) {
+        if (body[key] !== undefined) {
+          if (key === "email" && typeof body.email === "string" && body.email.trim()) {
+            const emailLower = body.email.trim().toLowerCase();
+            if (emailLower !== employee.email) {
+              const dup = await db.employee.findUnique({ where: { email: emailLower } });
+              if (dup && dup.id !== id) {
+                return NextResponse.json({ error: "Email already exists" }, { status: 409 });
+              }
+              data.email = emailLower;
+            }
+          } else if (key === "phone") {
+            data.phone = (body.phone as string | null)?.trim() || null;
+          } else if (key === "address") {
+            data.address = (body.address as string | null)?.trim() || null;
+          } else if (key === "birthday") {
+            data.birthday = body.birthday ? new Date(body.birthday as string) : null;
+          } else if (key === "gender") {
+            data.gender = (body.gender as string | null) || null;
+          }
+        }
+      }
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
+      }
     }
 
     const updated = await db.employee.update({
