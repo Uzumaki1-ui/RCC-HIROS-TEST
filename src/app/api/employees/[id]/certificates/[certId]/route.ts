@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth-token";
+import { requireAnyPermission } from "@/lib/auth-token";
 
 // ═══════════════════════════════════════════════════════════════
 // /api/employees/[id]/certificates/[certId]
@@ -13,10 +13,19 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; certId: string }> }
 ) {
   try {
-    const auth = await requirePermission(request, "profiling.edit");
+    const auth = await requireAnyPermission(request, ["profiling.edit", "profile.selfEdit"]);
     if (!auth.ok) return auth.response;
 
     const { id, certId } = await params;
+
+    const isSelfEdit = auth.user.id === id;
+    if (isSelfEdit && !auth.user.permissions.includes("profile.selfEdit")) {
+      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+    }
+    if (!auth.user.permissions.includes("profiling.edit") && !isSelfEdit) {
+      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+    }
+
     const cert = await db.employeeCertificate.findFirst({
       where: { id: certId, employeeId: id },
     });
@@ -76,10 +85,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; certId: string }> }
 ) {
   try {
-    const auth = await requirePermission(request, "profiling.edit");
+    const auth = await requireAnyPermission(request, ["profiling.edit", "profile.selfEdit"]);
     if (!auth.ok) return auth.response;
 
     const { id, certId } = await params;
+
+    const isSelfEdit = auth.user.id === id;
+    if (isSelfEdit && !auth.user.permissions.includes("profile.selfEdit")) {
+      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+    }
+    if (!auth.user.permissions.includes("profiling.edit") && !isSelfEdit) {
+      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+    }
+
     const cert = await db.employeeCertificate.findFirst({
       where: { id: certId, employeeId: id },
     });

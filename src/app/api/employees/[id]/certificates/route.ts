@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth-token";
+import { requirePermission, requireAnyPermission } from "@/lib/auth-token";
 
 // ═══════════════════════════════════════════════════════════════
 // /api/employees/[id]/certificates
@@ -58,10 +58,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requirePermission(request, "profiling.edit");
+    const auth = await requireAnyPermission(request, ["profiling.edit", "profile.selfEdit"]);
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
+
+    // Self-edit: only allow adding to own profile
+    const isSelfEdit = auth.user.id === id;
+    if (isSelfEdit && !auth.user.permissions.includes("profile.selfEdit")) {
+      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+    }
+    if (!auth.user.permissions.includes("profiling.edit") && !isSelfEdit) {
+      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+    }
+
     const employee = await db.employee.findUnique({
       where: { id },
       select: { id: true },

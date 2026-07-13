@@ -664,8 +664,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
 
   // Inline edit mode
   const canSelfEdit = employeeId === user?.id && has("profile.selfEdit");
-  const canEditAll = has("profile.editAll");
-  const canInlineEdit = canSelfEdit || canEditAll;
+  const canInlineEdit = canSelfEdit;
   const canManageFiles = has("profiling.edit") || has("profile.editAll") || canSelfEdit;
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ email: "", phone: "", address: "", birthday: "", gender: "" });
@@ -1023,7 +1022,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
             <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">
               Certificates
             </h2>
-            {has("profiling.edit") && (
+            {(has("profiling.edit") || canSelfEdit) && (
               <button
                 onClick={() => setCertOpen(true)}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
@@ -1052,7 +1051,7 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
                           {c.expiryDate && <p>Expires: {new Date(c.expiryDate).toLocaleDateString()}</p>}
                         </div>
                       </div>
-                      {has("profiling.edit") && (
+                      {(has("profiling.edit") || canSelfEdit) && (
                         <button
                           onClick={() => handleDeleteCert(c.id, c.title)}
                           className="p-1 rounded text-rcc-text-muted hover:text-rcc-error hover:bg-red-50 transition-colors"
