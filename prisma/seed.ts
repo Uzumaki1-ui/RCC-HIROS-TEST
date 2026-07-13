@@ -821,70 +821,216 @@ async function main() {
     weight: number;
     sortOrder: number;
   }> = [
-    // Teaching & Instruction
+    // I. Communication Skills (4 items)
     {
-      category: "Teaching & Instruction",
-      description: "Demonstrates mastery of subject matter and presents content accurately.",
-      weight: 1.5,
+      category: "I. Communication Skills",
+      description: "Pronounces words clearly and distinctly.",
+      weight: 1.0,
       sortOrder: 1,
     },
     {
-      category: "Teaching & Instruction",
-      description: "Uses varied teaching strategies that engage students effectively.",
-      weight: 1.5,
+      category: "I. Communication Skills",
+      description: "Speaks clearly enough to be understood easily.",
+      weight: 1.0,
       sortOrder: 2,
     },
-    // Classroom Management
     {
-      category: "Classroom Management",
-      description: "Maintains a safe, orderly, and conducive learning environment.",
+      category: "I. Communication Skills",
+      description: "Has good command of English or Filipino.",
       weight: 1.0,
       sortOrder: 3,
     },
     {
-      category: "Classroom Management",
-      description: "Manages class time effectively and starts/ends on schedule.",
+      category: "I. Communication Skills",
+      description: "Has a well-modulated voice.",
       weight: 1.0,
       sortOrder: 4,
     },
-    // Professionalism
+    // II. Instructional Skills (7 items)
     {
-      category: "Professionalism",
-      description: "Shows punctuality and regular attendance.",
+      category: "II. Instructional Skills",
+      description: "Uses a variety of methods and techniques to facilitate learning.",
       weight: 1.0,
       sortOrder: 5,
     },
     {
-      category: "Professionalism",
-      description: "Maintains professional relationships with students and colleagues.",
+      category: "II. Instructional Skills",
+      description: "Presents the subject matter clearly and systematically.",
       weight: 1.0,
       sortOrder: 6,
     },
-    // Student Engagement
     {
-      category: "Student Engagement",
-      description: "Encourages student participation and active learning.",
+      category: "II. Instructional Skills",
+      description: "Adjusts to the students' learning pace without sacrificing completeness of the course.",
       weight: 1.0,
       sortOrder: 7,
     },
     {
-      category: "Student Engagement",
-      description: "Provides timely and constructive feedback on student work.",
+      category: "II. Instructional Skills",
+      description: "Provokes critical, creative, and reflective thinking.",
       weight: 1.0,
       sortOrder: 8,
     },
-    // Curriculum & Assessment
     {
-      category: "Curriculum & Assessment",
-      description: "Aligns lessons with course outcomes and syllabus.",
+      category: "II. Instructional Skills",
+      description: "Encourages students' active participation in the discussions.",
       weight: 1.0,
       sortOrder: 9,
     },
     {
-      category: "Curriculum & Assessment",
-      description: "Uses fair, valid, and reliable assessment methods.",
+      category: "II. Instructional Skills",
+      description: "Uses teaching aids/devices like illustrations, diagrams, etc.",
       weight: 1.0,
       sortOrder: 10,
+    },
+    {
+      category: "II. Instructional Skills",
+      description: "Elicits correct responses through skillful questioning.",
+      weight: 1.0,
+      sortOrder: 11,
+    },
+    // III. Knowledge of the Subject-Matter (5 items)
+    {
+      category: "III. Knowledge of the Subject-Matter",
+      description: "Discusses the lesson with mastery.",
+      weight: 1.0,
+      sortOrder: 12,
+    },
+    {
+      category: "III. Knowledge of the Subject-Matter",
+      description: "Follows the course syllabus.",
+      weight: 1.0,
+      sortOrder: 13,
+    },
+    {
+      category: "III. Knowledge of the Subject-Matter",
+      description: "Relates subject matter to other subjects and to previous knowledge and experiences.",
+      weight: 1.0,
+      sortOrder: 14,
+    },
+    {
+      category: "III. Knowledge of the Subject-Matter",
+      description: "Relates subject matter to the vision, mission, and objectives of the college.",
+      weight: 1.0,
+      sortOrder: 15,
+    },
+    {
+      category: "III. Knowledge of the Subject-Matter",
+      description: "Integrates values in the lessons.",
+      weight: 1.0,
+      sortOrder: 16,
+    },
+    // IV. Classroom Management (6 items)
+    {
+      category: "IV. Classroom Management",
+      description: "Maintains class discipline.",
+      weight: 1.0,
+      sortOrder: 17,
+    },
+    {
+      category: "IV. Classroom Management",
+      description: "Sees to it that the room is clean and orderly.",
+      weight: 1.0,
+      sortOrder: 18,
+    },
+    {
+      category: "IV. Classroom Management",
+      description: "Comes to class on time.",
+      weight: 1.0,
+      sortOrder: 19,
+    },
+    {
+      category: "IV. Classroom Management",
+      description: "Dismisses class on time.",
+      weight: 1.0,
+      sortOrder: 20,
+    },
+    {
+      category: "IV. Classroom Management",
+      description: "Is always present in class.",
+      weight: 1.0,
+      sortOrder: 21,
+    },
+    {
+      category: "IV. Classroom Management",
+      description: "Enforces school rules and regulations consistently.",
+      weight: 1.0,
+      sortOrder: 22,
+    },
+    // V. Professional Qualities (5 items)
+    {
+      category: "V. Professional Qualities",
+      description: "Respects students' opinions.",
+      weight: 1.0,
+      sortOrder: 23,
+    },
+    {
+      category: "V. Professional Qualities",
+      description: "Maintains good working relations with students.",
+      weight: 1.0,
+      sortOrder: 24,
+    },
+    {
+      category: "V. Professional Qualities",
+      description: "Is fair in giving grades.",
+      weight: 1.0,
+      sortOrder: 25,
+    },
+    {
+      category: "V. Professional Qualities",
+      description: "Is firm and consistent — strict but reasonable in dealing with students.",
+      weight: 1.0,
+      sortOrder: 26,
+    },
+    {
+      category: "V. Professional Qualities",
+      description: "Returns corrected test papers and projects promptly.",
+      weight: 1.0,
+      sortOrder: 27,
+    },
+    // VI. Personal Qualities (3 items)
+    {
+      category: "VI. Personal Qualities",
+      description: "Dresses neatly and appropriately.",
+      weight: 1.0,
+      sortOrder: 28,
+    },
+    {
+      category: "VI. Personal Qualities",
+      description: "Demonstrates calmness and poise.",
+      weight: 1.0,
+      sortOrder: 29,
+    },
+    {
+      category: "VI. Personal Qualities",
+      description: "Is physically and mentally fit to teach.",
+      weight: 1.0,
+      sortOrder: 30,
+    },
+    // VII. Classwork Design (For Online Classroom) (4 items)
+    {
+      category: "VII. Classwork Design (For Online Classroom)",
+      description: "Presents an instructional plan/syllabus geared towards the attainment of learning outcomes.",
+      weight: 1.0,
+      sortOrder: 31,
+    },
+    {
+      category: "VII. Classwork Design (For Online Classroom)",
+      description: "Uses modules to organize classwork content.",
+      weight: 1.0,
+      sortOrder: 32,
+    },
+    {
+      category: "VII. Classwork Design (For Online Classroom)",
+      description: "Provides equal access of learning materials to all students.",
+      weight: 1.0,
+      sortOrder: 33,
+    },
+    {
+      category: "VII. Classwork Design (For Online Classroom)",
+      description: "Organizes assignments, activities and related due dates.",
+      weight: 1.0,
+      sortOrder: 34,
     },
   ];
 

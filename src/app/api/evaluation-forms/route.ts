@@ -17,16 +17,47 @@ const DEFAULT_CRITERIA: {
   maxScore?: number;
   weight?: number;
 }[] = [
-  { category: "Teaching Competence", description: "Subject matter expertise and delivery" },
-  { category: "Teaching Competence", description: "Lesson planning and preparation" },
-  { category: "Professionalism", description: "Punctuality and attendance" },
-  { category: "Professionalism", description: "Ethical conduct and integrity" },
-  { category: "Student Engagement", description: "Classroom interaction and rapport" },
-  { category: "Student Engagement", description: "Responsiveness to student needs" },
-  { category: "Administrative Duties", description: "Timely submission of reports" },
-  { category: "Administrative Duties", description: "Compliance with school policies" },
-  { category: "Continuous Improvement", description: "Participation in training and development" },
-  { category: "Continuous Improvement", description: "Innovation in teaching methods" },
+  // I. Communication Skills (4 items)
+  { category: "I. Communication Skills", description: "Pronounces words clearly and distinctly." },
+  { category: "I. Communication Skills", description: "Speaks clearly enough to be understood easily." },
+  { category: "I. Communication Skills", description: "Has good command of English or Filipino." },
+  { category: "I. Communication Skills", description: "Has a well-modulated voice." },
+  // II. Instructional Skills (7 items)
+  { category: "II. Instructional Skills", description: "Uses a variety of methods and techniques to facilitate learning." },
+  { category: "II. Instructional Skills", description: "Presents the subject matter clearly and systematically." },
+  { category: "II. Instructional Skills", description: "Adjusts to the students' learning pace without sacrificing completeness of the course." },
+  { category: "II. Instructional Skills", description: "Provokes critical, creative, and reflective thinking." },
+  { category: "II. Instructional Skills", description: "Encourages students' active participation in the discussions." },
+  { category: "II. Instructional Skills", description: "Uses teaching aids/devices like illustrations, diagrams, etc." },
+  { category: "II. Instructional Skills", description: "Elicits correct responses through skillful questioning." },
+  // III. Knowledge of the Subject-Matter (5 items)
+  { category: "III. Knowledge of the Subject-Matter", description: "Discusses the lesson with mastery." },
+  { category: "III. Knowledge of the Subject-Matter", description: "Follows the course syllabus." },
+  { category: "III. Knowledge of the Subject-Matter", description: "Relates subject matter to other subjects and to previous knowledge and experiences." },
+  { category: "III. Knowledge of the Subject-Matter", description: "Relates subject matter to the vision, mission, and objectives of the college." },
+  { category: "III. Knowledge of the Subject-Matter", description: "Integrates values in the lessons." },
+  // IV. Classroom Management (6 items)
+  { category: "IV. Classroom Management", description: "Maintains class discipline." },
+  { category: "IV. Classroom Management", description: "Sees to it that the room is clean and orderly." },
+  { category: "IV. Classroom Management", description: "Comes to class on time." },
+  { category: "IV. Classroom Management", description: "Dismisses class on time." },
+  { category: "IV. Classroom Management", description: "Is always present in class." },
+  { category: "IV. Classroom Management", description: "Enforces school rules and regulations consistently." },
+  // V. Professional Qualities (5 items)
+  { category: "V. Professional Qualities", description: "Respects students' opinions." },
+  { category: "V. Professional Qualities", description: "Maintains good working relations with students." },
+  { category: "V. Professional Qualities", description: "Is fair in giving grades." },
+  { category: "V. Professional Qualities", description: "Is firm and consistent — strict but reasonable in dealing with students." },
+  { category: "V. Professional Qualities", description: "Returns corrected test papers and projects promptly." },
+  // VI. Personal Qualities (3 items)
+  { category: "VI. Personal Qualities", description: "Dresses neatly and appropriately." },
+  { category: "VI. Personal Qualities", description: "Demonstrates calmness and poise." },
+  { category: "VI. Personal Qualities", description: "Is physically and mentally fit to teach." },
+  // VII. Classwork Design (For Online Classroom) (4 items)
+  { category: "VII. Classwork Design (For Online Classroom)", description: "Presents an instructional plan/syllabus geared towards the attainment of learning outcomes." },
+  { category: "VII. Classwork Design (For Online Classroom)", description: "Uses modules to organize classwork content." },
+  { category: "VII. Classwork Design (For Online Classroom)", description: "Provides equal access of learning materials to all students." },
+  { category: "VII. Classwork Design (For Online Classroom)", description: "Organizes assignments, activities and related due dates." },
 ];
 
 export async function GET(request: NextRequest) {

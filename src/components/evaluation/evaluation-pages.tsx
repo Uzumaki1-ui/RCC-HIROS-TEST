@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
-  Plus, Search, ArrowLeft, Save, AlertTriangle, ClipboardList,
+  Plus, ArrowLeft, AlertTriangle,
   CheckCircle2, FileText, Info, Trash2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -85,13 +85,15 @@ interface EmployeeBrief {
 const inputClass =
   "w-full px-3 py-2 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40";
 
-// 5 categories × 2 criteria each = 10 fixed criteria
+// 7 categories × 34 criteria total — real RCC Faculty Evaluation Tool
 const EVAL_CATEGORIES = [
-  "Teaching Competence",
-  "Professionalism",
-  "Student Engagement",
-  "Administrative Duties",
-  "Continuous Improvement",
+  "I. Communication Skills",
+  "II. Instructional Skills",
+  "III. Knowledge of the Subject-Matter",
+  "IV. Classroom Management",
+  "V. Professional Qualities",
+  "VI. Personal Qualities",
+  "VII. Classwork Design (For Online Classroom)",
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -297,11 +299,11 @@ export function EvaluationFormsPage() {
           <Info className="h-5 w-5" />
         </div>
         <div className="text-sm">
-          <p className="font-semibold text-rcc-text-primary">Fixed 10-Criteria Evaluation Form</p>
+          <p className="font-semibold text-rcc-text-primary">RCC Faculty Evaluation Tool — 34 Criteria</p>
           <p className="text-rcc-text-muted mt-1">
-            All evaluations use the same fixed 10-criteria form across 5 categories:
+            All evaluations use the official RCC faculty evaluation form across 7 categories:
             <span className="text-rcc-text-secondary"> {EVAL_CATEGORIES.join(" · ")}</span>.
-            Each criterion is scored 1–5. The total score is a weighted average.
+            Each criterion is scored 1–5. Two textual evaluation fields are provided at the end.
           </p>
           {activeForm && (
             <p className="text-xs text-rcc-text-muted mt-2">
@@ -460,7 +462,11 @@ export function SubmitEvaluationPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [remarks, setRemarks] = useState("");
+  const [remarksB, setRemarksB] = useState("");
   const [existingEval, setExistingEval] = useState<Evaluation | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [showComments, setShowComments] = useState<Record<string, boolean>>({});
+  const [allExpanded, setAllExpanded] = useState(false);
 
   // Load open periods + employees (group-scoped by API)
   useEffect(() => {
@@ -532,12 +538,23 @@ export function SubmitEvaluationPage() {
           }
           setScores(s);
           setComments(c);
-          setRemarks(existing.remarks ?? "");
+          // Split remarks on the separator into A and B
+          const sep = "\n\n---\n\n";
+          const raw = existing.remarks ?? "";
+          if (raw.includes(sep)) {
+            const parts = raw.split(sep);
+            setRemarks(parts[0] ?? "");
+            setRemarksB(parts[1] ?? "");
+          } else {
+            setRemarks(raw);
+            setRemarksB("");
+          }
         } else {
           setExistingEval(null);
           setScores({});
           setComments({});
           setRemarks("");
+          setRemarksB("");
         }
       } catch {
         // ignore — treat as no existing
@@ -568,6 +585,9 @@ export function SubmitEvaluationPage() {
           score: scores[c.id],
           comments: comments[c.id]?.trim() || undefined,
         }));
+      const combinedRemarks = [remarks.trim(), remarksB.trim()]
+        .filter(Boolean)
+        .join("\n\n---\n\n") || undefined;
       await apiFetch("/api/evaluations", {
         method: "POST",
         body: JSON.stringify({
@@ -575,7 +595,7 @@ export function SubmitEvaluationPage() {
           formId: activeForm.id,
           employeeId,
           responses,
-          remarks: remarks.trim() || undefined,
+          remarks: combinedRemarks,
           status,
         }),
       });
@@ -586,7 +606,11 @@ export function SubmitEvaluationPage() {
         setScores({});
         setComments({});
         setRemarks("");
+        setRemarksB("");
         setExistingEval(null);
+        setExpandedSections({});
+        setShowComments({});
+        setAllExpanded(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
@@ -608,7 +632,8 @@ export function SubmitEvaluationPage() {
       <div>
         <h1 className="text-xl font-bold text-rcc-text-primary">Submit Evaluation</h1>
         <p className="text-sm text-rcc-text-muted mt-0.5">
-          Score each criterion 1–5. You can save a draft and return later, or submit when complete.
+          Score each criterion 1–5 across 7 categories (34 criteria). Two optional textual evaluations at the bottom.
+          You can save a draft and return later, or submit when complete.
         </p>
       </div>
 
@@ -652,70 +677,169 @@ export function SubmitEvaluationPage() {
         </div>
       </div>
 
-      {/* Criteria */}
+      {/* Criteria — collapsible sections */}
       {selectedPeriod && activeForm && (
         <div className="space-y-4">
-          {criteriaByCategory.map((group) => (
-            <div key={group.category} className="bg-rcc-surface rounded-lg border border-rcc-border p-6">
-              <h3 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide mb-4">
-                {group.category}
-              </h3>
-              <div className="space-y-4">
-                {group.items.map((crit) => (
-                  <div key={crit.id} className="border-b border-rcc-border last:border-0 last:pb-0 pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-rcc-text-primary">{crit.description}</p>
-                        <p className="text-xs text-rcc-text-muted mt-0.5">Max {crit.maxScore} · Weight {crit.weight}</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <label
-                            key={n}
-                            className={`w-8 h-8 rounded-md border cursor-pointer flex items-center justify-center text-xs font-bold transition-colors ${
-                              scores[crit.id] === n
-                                ? "bg-rcc-primary text-rcc-primary-foreground border-rcc-primary"
-                                : "border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name={`crit-${crit.id}`}
-                              value={n}
-                              checked={scores[crit.id] === n}
-                              onChange={() => setScores((prev) => ({ ...prev, [crit.id]: n }))}
-                              className="sr-only"
-                            />
-                            {n}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <input
-                      type="text"
-                      value={comments[crit.id] ?? ""}
-                      onChange={(e) => setComments((prev) => ({ ...prev, [crit.id]: e.target.value }))}
-                      placeholder="Optional comment..."
-                      className={inputClass}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
 
-          {/* Textual remarks */}
-          <div className="bg-rcc-surface rounded-lg border border-rcc-border p-6 space-y-3">
-            <h3 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">
-              Textual Evaluation
-            </h3>
+          {/* Expand / Collapse All */}
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => {
+                const next = !allExpanded;
+                setAllExpanded(next);
+                const all: Record<string, boolean> = {};
+                for (const g of criteriaByCategory) {
+                  all[g.category] = next;
+                }
+                setExpandedSections(all);
+              }}
+              className="text-xs font-medium text-rcc-accent hover:underline"
+            >
+              {allExpanded ? "Collapse All" : "Expand All"}
+            </button>
+          </div>
+
+          {criteriaByCategory.map((group) => {
+            const scoredCount = group.items.filter((c) => scores[c.id] !== undefined).length;
+            const isExpanded = !!expandedSections[group.category];
+            return (
+              <div key={group.category} className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
+                {/* Section header */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isExpanded;
+                    setExpandedSections((prev) => ({ ...prev, [group.category]: next }));
+                    if (!next) setAllExpanded(false);
+                    else if (criteriaByCategory.every((g) => g.category === group.category ? true : expandedSections[g.category])) {
+                      setAllExpanded(true);
+                    }
+                  }}
+                  className="w-full flex items-center justify-between gap-3 px-5 py-3 hover:bg-rcc-bg/40 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <svg
+                      className={`w-4 h-4 text-rcc-text-muted shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="text-sm font-semibold text-rcc-text-primary">{group.category}</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      scoredCount === group.items.length
+                        ? "bg-green-100 text-green-700"
+                        : scoredCount > 0
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-gray-100 text-gray-500"
+                    }`}>
+                      {scoredCount}/{group.items.length} scored
+                    </span>
+                  </div>
+                </button>
+
+                {/* Section body */}
+                {isExpanded && (
+                  <div className="border-t border-rcc-border divide-y divide-rcc-border">
+                    {group.items.map((crit) => (
+                      <div key={crit.id} className="px-5 py-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 pt-1">
+                            <p className="text-sm text-rcc-text-primary leading-snug">{crit.description}</p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <label
+                                key={n}
+                                className={`w-7 h-7 rounded-md border cursor-pointer flex items-center justify-center text-xs font-bold transition-colors ${
+                                  scores[crit.id] === n
+                                    ? "bg-rcc-primary text-rcc-primary-foreground border-rcc-primary"
+                                    : "border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg"
+                                }`}
+                                title={n === 1 ? "Poor" : n === 2 ? "Fair" : n === 3 ? "Satisfactory" : n === 4 ? "Very Good" : "Excellent"}
+                              >
+                                <input
+                                  type="radio"
+                                  name={`crit-${crit.id}`}
+                                  value={n}
+                                  checked={scores[crit.id] === n}
+                                  onChange={() => setScores((prev) => ({ ...prev, [crit.id]: n }))}
+                                  className="sr-only"
+                                />
+                                {n}
+                              </label>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setShowComments((prev) => ({ ...prev, [crit.id]: !prev[crit.id] }))}
+                              className={`w-7 h-7 rounded-md border flex items-center justify-center text-xs transition-colors ${
+                                showComments[crit.id]
+                                  ? "bg-rcc-accent/10 text-rcc-accent border-rcc-accent/30"
+                                  : "border-rcc-border text-rcc-text-muted hover:bg-rcc-bg"
+                              }`}
+                              title={showComments[crit.id] ? "Hide comment" : "Add comment"}
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        {showComments[crit.id] && (
+                          <input
+                            type="text"
+                            value={comments[crit.id] ?? ""}
+                            onChange={(e) => setComments((prev) => ({ ...prev, [crit.id]: e.target.value }))}
+                            placeholder="Optional comment..."
+                            className={`${inputClass} mt-2 text-xs`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Textual Evaluation — A */}
+          <div className="bg-rcc-surface rounded-lg border border-rcc-border p-5 space-y-2">
+            <h3 className="text-sm font-semibold text-rcc-text-primary">Textual Evaluation (A)</h3>
+            <p className="text-xs text-rcc-text-muted leading-relaxed">
+              Please state briefly and sincerely anything about your teacher which is not covered in the preceding items.
+            </p>
             <textarea
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              rows={4}
-              placeholder="Overall remarks, strengths, areas for improvement..."
-              className={`${inputClass} resize-y`}
+              rows={3}
+              placeholder="Any other comments about the teacher..."
+              className={`${inputClass} resize-y text-xs`}
             />
+          </div>
+
+          {/* Textual Evaluation — B */}
+          <div className="bg-rcc-surface rounded-lg border border-rcc-border p-5 space-y-2">
+            <h3 className="text-sm font-semibold text-rcc-text-primary">Textual Evaluation (B)</h3>
+            <p className="text-xs text-rcc-text-muted leading-relaxed">
+              Please state any recommendations for the improvement of facilities, services, students, faculty or administration in general.
+            </p>
+            <textarea
+              value={remarksB}
+              onChange={(e) => setRemarksB(e.target.value)}
+              rows={3}
+              placeholder="Recommendations for improvement..."
+              className={`${inputClass} resize-y text-xs`}
+            />
+          </div>
+
+          {/* Rating legend */}
+          <div className="flex items-center gap-4 text-[10px] text-rcc-text-muted px-1">
+            <span>1 — Poor</span>
+            <span>2 — Fair</span>
+            <span>3 — Satisfactory</span>
+            <span>4 — Very Good</span>
+            <span>5 — Excellent</span>
           </div>
 
           {/* Actions */}
@@ -990,30 +1114,34 @@ function EvaluationDetailsModal({ evaluation, onClose }: { evaluation: Evaluatio
             </div>
           </div>
 
-          {/* Responses — if any */}
+          {/* Responses — grouped by category */}
           {evaluation.responses.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide mb-2">Criterion Responses</h4>
-              <ul className="space-y-2">
-                {evaluation.responses.map((r) => (
-                  <li key={r.id} className="border border-rcc-border rounded-md p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        {r.criterion ? (
-                          <>
-                            <span className="text-[10px] text-rcc-text-muted uppercase tracking-wide">{r.criterion.category}</span>
-                            <p className="text-xs text-rcc-text-primary">{r.criterion.description}</p>
-                          </>
-                        ) : (
-                          <code className="text-[10px] text-rcc-text-muted">{r.criterionId}</code>
-                        )}
-                      </div>
-                      <span className="text-sm font-bold text-rcc-text-primary tabular-nums shrink-0">{r.score} / 5</span>
-                    </div>
-                    {r.comments && <p className="text-xs text-rcc-text-secondary mt-1">{r.comments}</p>}
-                  </li>
-                ))}
-              </ul>
+              {(() => {
+                const grouped = new Map<string, typeof evaluation.responses>();
+                for (const r of evaluation.responses) {
+                  const cat = r.criterion?.category ?? "Other";
+                  if (!grouped.has(cat)) grouped.set(cat, []);
+                  grouped.get(cat)!.push(r);
+                }
+                return Array.from(grouped.entries()).map(([category, items]) => (
+                  <div key={category} className="mb-3 last:mb-0">
+                    <p className="text-[10px] font-semibold text-rcc-text-muted uppercase tracking-wide mb-1.5">{category}</p>
+                    <ul className="space-y-1.5">
+                      {items.map((r) => (
+                        <li key={r.id} className="border border-rcc-border rounded-md px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-rcc-text-primary min-w-0">{r.criterion?.description ?? r.criterionId}</p>
+                            <span className="text-sm font-bold text-rcc-text-primary tabular-nums shrink-0">{r.score} / 5</span>
+                          </div>
+                          {r.comments && <p className="text-[11px] text-rcc-text-secondary mt-1 italic">{r.comments}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>
@@ -1082,6 +1210,6 @@ function Field({
   );
 }
 
-// Suppress unused-import warnings
-void Search;
-void ClipboardList;
+
+
+
