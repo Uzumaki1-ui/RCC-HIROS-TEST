@@ -15,10 +15,12 @@
 const { spawn, execSync } = require("child_process");
 const path = require("path");
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 // Always resolve PROJECT_DIR from this file's location, never trust CWD
 const PROJECT_DIR = path.resolve(__dirname, "..");
 const PORT = process.env.PORT || 3000;
-const MAX_RESTARTS = 50;       // Max restarts before giving up (was 20, raised for HMR churn)
+const MAX_RESTARTS = 50;
 const RESTART_WINDOW = 3600000; // 1 hour window
 const RESTART_DELAY = 5000;    // 5s between restarts
 
@@ -26,13 +28,48 @@ const restartTimes = [];
 let shuttingDown = false;
 
 /**
- * Kill ALL processes listening on port 3000.
- * Uses fuser for more reliable process killing than lsof.
+ * Windows: find the PID listening on a given port using netstat.
+ * Returns PID string or null.
+ */
+function getPidOnPortWindows(port) {
+  try {
+    const output = execSync(
+      `netstat -ano | findstr :${port}`,
+      { encoding: "utf-8", timeout: 5000 }
+    );
+    const lines = output.trim().split("\n").filter(l => l.includes("LISTENING"));
+    if (lines.length === 0) return null;
+    const parts = lines[0].trim().split(/\s+/);
+    return parts[parts.length - 1];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Windows: kill process on the given port using taskkill.
+ */
+async function killPortUsersWindows() {
+  try {
+    const pid = getPidOnPortWindows(PORT);
+    if (!pid) return false;
+    console.log(`[HIROS] Killing process on port ${PORT}: PID ${pid}`);
+    try {
+      execSync(`taskkill /F /PID ${pid} 2>nul`, { encoding: "utf-8" });
+    } catch { /* ignore */ }
+    await sleep(2000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Unix: kill ALL processes listening on the given port using lsof.
  * Returns true if any processes were killed.
  */
-function killPortUsers() {
+async function killPortUsersUnix() {
   try {
-    // Get all PIDs on port 3000
     const pids = execSync(
       `lsof -ti :${PORT} 2>/dev/null || true`,
       { encoding: "utf-8" }
@@ -42,16 +79,12 @@ function killPortUsers() {
 
     console.log(`[HIROS] Killing processes on port ${PORT}: ${pids.replace(/\n/g, " ")}`);
 
-    // Try graceful kill first
     try {
       execSync(`echo "${pids}" | xargs kill -15 2>/dev/null || true`, { encoding: "utf-8" });
     } catch { /* ignore */ }
 
-    // Wait a moment
-    const start = Date.now();
-    while (Date.now() - start < 2000) { /* busy wait 2s */ }
+    await sleep(2000);
 
-    // Force kill survivors
     try {
       const survivors = execSync(
         `lsof -ti :${PORT} 2>/dev/null || true`,
@@ -63,10 +96,7 @@ function killPortUsers() {
       }
     } catch { /* ignore */ }
 
-    // Wait for port to be released
-    const portStart = Date.now();
-    while (Date.now() - portStart < 3000) { /* busy wait 3s for port release */ }
-
+    await sleep(3000);
     return true;
   } catch {
     return false;
@@ -74,9 +104,22 @@ function killPortUsers() {
 }
 
 /**
- * Check if port is free
+ * Kill ALL processes listening on PORT, platform-aware.
  */
-function isPortFree() {
+async function killPortUsers() {
+  if (process.platform === "win32") {
+    return killPortUsersWindows();
+  }
+  return killPortUsersUnix();
+}
+
+/**
+ * Check if port is free, platform-aware.
+ */
+async function isPortFree() {
+  if (process.platform === "win32") {
+    return getPidOnPortWindows(PORT) === null;
+  }
   try {
     const result = execSync(
       `lsof -ti :${PORT} 2>/dev/null || true`,
@@ -115,12 +158,9 @@ function loadDotEnv() {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     let val = trimmed.slice(eq + 1).trim();
-    // Strip surrounding quotes
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
-    // .env values WIN over inherited shell values — this is the fix for
-    // "stopping server" caused by stale DATABASE_URL pointing at a wrong path.
     process.env[key] = val;
   }
   console.log(`[HIROS] Loaded .env from ${envPath}`);
@@ -136,7 +176,7 @@ function startServer() {
 
     const child = spawn(
       process.execPath,
-      ["node_modules/.bin/next", "dev", "-p", String(PORT)],
+      [require.resolve("next/dist/bin/next"), "dev", "-p", String(PORT)],
       {
         cwd: PROJECT_DIR,
         stdio: "inherit",
@@ -172,80 +212,66 @@ function startServer() {
 async function main() {
   console.log(`[HIROS] Dev server runner started (PROJECT_DIR=${PROJECT_DIR})`);
 
-  // Load .env before doing anything else — ensures DATABASE_URL etc. are correct
   loadDotEnv();
 
   while (!shuttingDown) {
-    // Step 1: Clean up any processes on our port
-    killPortUsers();
+    await killPortUsers();
 
-    // Step 2: Wait for port to be free
     let waitCount = 0;
-    while (!isPortFree() && waitCount < 10) {
+    while (!(await isPortFree()) && waitCount < 10) {
       console.log(`[HIROS] Port ${PORT} still in use, waiting... (${waitCount + 1}/10)`);
-      const start = Date.now();
-      while (Date.now() - start < 2000) { /* wait 2s */ }
-      killPortUsers();
+      await sleep(2000);
+      await killPortUsers();
       waitCount++;
     }
 
-    if (!isPortFree()) {
+    if (!(await isPortFree())) {
       console.error(`[HIROS] Port ${PORT} still occupied after 10 cleanup attempts. Giving up.`);
       process.exit(1);
     }
 
-    // Step 3: Check restart budget
     if (countRecentRestarts() >= MAX_RESTARTS) {
       console.error(`[HIROS] Too many restarts (${MAX_RESTARTS}) in the last hour. Stopping.`);
       process.exit(1);
     }
 
-    // Step 4: Start the server
     const exitCode = await startServer();
 
-    // Step 5: If normal exit, stop the loop
     if (exitCode === 0 || shuttingDown) {
       break;
     }
 
-    // Step 6: Record restart and wait before retry
     restartTimes.push(Date.now());
     const recentRestarts = countRecentRestarts();
     console.log(`[HIROS] Restart #${recentRestarts}/${MAX_RESTARTS} in ${RESTART_DELAY / 1000}s...`);
 
-    const delayStart = Date.now();
-    while (Date.now() - delayStart < RESTART_DELAY) { /* wait */ }
+    await sleep(RESTART_DELAY);
   }
 
   console.log(`[HIROS] Dev server runner exiting`);
   process.exit(0);
 }
 
-// Handle shutdown
 function handleShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`\n[HIROS] Received ${signal}, shutting down...`);
 
-  // Kill everything on the port
-  killPortUsers();
-
-  setTimeout(() => {
-    console.log("[HIROS] Exiting");
-    process.exit(0);
-  }, 3000);
+  killPortUsers().then(() => {
+    setTimeout(() => {
+      console.log("[HIROS] Exiting");
+      process.exit(0);
+    }, 3000);
+  });
 }
 
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGHUP", () => handleShutdown("SIGHUP"));
 
-// Prevent uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("[HIROS] Uncaught exception:", err);
-  killPortUsers();
-  process.exit(1);
+  killPortUsers().then(() => process.exit(1));
 });
 
-// Start!
 main();
