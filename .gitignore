@@ -17,3 +17,7 @@ uploads/
 
 # OpenCode config
 /.opencode/
+
+# Playwright
+.playwright-mcp/
+*.png
