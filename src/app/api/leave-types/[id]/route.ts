@@ -26,11 +26,10 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, code, defaultDays, carryOver, active } = body as {
+    const { name, code, defaultDays, active } = body as {
       name?: string;
       code?: string;
       defaultDays?: number;
-      carryOver?: boolean;
       active?: boolean;
     };
 
@@ -61,7 +60,6 @@ export async function PATCH(
       }
     }
     if (defaultDays !== undefined) data.defaultDays = Number(defaultDays) || 0;
-    if (carryOver !== undefined) data.carryOver = !!carryOver;
     if (active !== undefined) data.active = !!active;
 
     const updated = await db.leaveType.update({ where: { id }, data });

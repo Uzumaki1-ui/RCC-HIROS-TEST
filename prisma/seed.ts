@@ -548,18 +548,18 @@ async function main() {
   console.log("• Creating leave types...");
   const sickLeave = await prisma.leaveType.upsert({
     where: { code: "SL" },
-    update: { name: "Sick Leave", defaultDays: 10, carryOver: true, active: true },
-    create: { name: "Sick Leave", code: "SL", defaultDays: 10, carryOver: true, active: true },
+    update: { name: "Sick Leave", defaultDays: 10, active: true },
+    create: { name: "Sick Leave", code: "SL", defaultDays: 10, active: true },
   });
   const vacationLeave = await prisma.leaveType.upsert({
     where: { code: "VL" },
-    update: { name: "Vacation Leave", defaultDays: 15, carryOver: true, active: true },
-    create: { name: "Vacation Leave", code: "VL", defaultDays: 15, carryOver: true, active: true },
+    update: { name: "Vacation Leave", defaultDays: 15, active: true },
+    create: { name: "Vacation Leave", code: "VL", defaultDays: 15, active: true },
   });
   const emergencyLeave = await prisma.leaveType.upsert({
     where: { code: "EL" },
-    update: { name: "Emergency Leave", defaultDays: 5, carryOver: false, active: true },
-    create: { name: "Emergency Leave", code: "EL", defaultDays: 5, carryOver: false, active: true },
+    update: { name: "Emergency Leave", defaultDays: 5, active: true },
+    create: { name: "Emergency Leave", code: "EL", defaultDays: 5, active: true },
   });
   const leaveTypes = [sickLeave, vacationLeave, emergencyLeave];
 

@@ -33,11 +33,10 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const body = await request.json();
-    const { name, code, defaultDays = 0, carryOver = false, active = true } = body as {
+    const { name, code, defaultDays = 0, active = true } = body as {
       name?: string;
       code?: string;
       defaultDays?: number;
-      carryOver?: boolean;
       active?: boolean;
     };
 
@@ -80,7 +79,6 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         code: upperCode,
         defaultDays: Number(defaultDays) || 0,
-        carryOver: !!carryOver,
         active: !!active,
       },
     });

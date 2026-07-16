@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
   Plus, Search, Pencil, Trash2, ArrowLeft, Save, AlertTriangle,
-  CalendarClock, FileText, Eye, Download, X, Upload, Check, Clock,
+  CalendarClock, FileText, Eye, Download, X, Upload, Clock,
   ThumbsUp, ThumbsDown, Undo2, FileUp,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -23,7 +23,6 @@ interface LeaveType {
   name: string;
   code: string;
   defaultDays: number;
-  carryOver: boolean;
   active: boolean;
 }
 
@@ -807,7 +806,6 @@ export function LeaveTypeManagementPage() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [defaultDays, setDefaultDays] = useState("0");
-  const [carryOver, setCarryOver] = useState(false);
   const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -835,7 +833,6 @@ export function LeaveTypeManagementPage() {
     setName("");
     setCode("");
     setDefaultDays("0");
-    setCarryOver(false);
     setActive(true);
     setEditTarget(null);
     setShowForm(false);
@@ -846,7 +843,6 @@ export function LeaveTypeManagementPage() {
     setName(lt.name);
     setCode(lt.code);
     setDefaultDays(String(lt.defaultDays));
-    setCarryOver(lt.carryOver);
     setActive(lt.active);
     setShowForm(true);
   };
@@ -861,7 +857,6 @@ export function LeaveTypeManagementPage() {
         name: name.trim(),
         code: code.trim().toUpperCase(),
         defaultDays: Number(defaultDays) || 0,
-        carryOver,
         active,
       };
       if (editTarget) {
@@ -927,10 +922,6 @@ export function LeaveTypeManagementPage() {
             </Field>
             <div className="flex items-center gap-4 pt-6">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={carryOver} onChange={(e) => setCarryOver(e.target.checked)} className="h-4 w-4 rounded border-rcc-border text-rcc-accent focus:ring-rcc-accent/40" />
-                <span className="text-sm text-rcc-text-primary">Allow Carry-Over</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 rounded border-rcc-border text-rcc-accent focus:ring-rcc-accent/40" />
                 <span className="text-sm text-rcc-text-primary">Active</span>
               </label>
@@ -960,29 +951,21 @@ export function LeaveTypeManagementPage() {
                 <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Name</th>
                 <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Code</th>
                 <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Default Days</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Carry-Over</th>
                 <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Status</th>
                 <th className="text-right text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-rcc-border">
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
+                <tr><td colSpan={5} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
               ) : leaveTypes.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-rcc-text-muted">No leave types. Create one to get started.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-10 text-center text-rcc-text-muted">No leave types. Create one to get started.</td></tr>
               ) : (
                 leaveTypes.map((lt) => (
                   <tr key={lt.id} className="hover:bg-rcc-bg/30 transition-colors">
                     <td className="px-4 py-3 font-medium text-rcc-text-primary">{lt.name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-rcc-text-secondary">{lt.code}</td>
                     <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{lt.defaultDays}</td>
-                    <td className="px-4 py-3">
-                      {lt.carryOver ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-700"><Check className="h-3 w-3" /> Yes</span>
-                      ) : (
-                        <span className="text-xs text-rcc-text-muted">No</span>
-                      )}
-                    </td>
                     <td className="px-4 py-3">
                       {lt.active ? (
                         <span className="inline-flex items-center gap-1 text-xs text-green-700"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Active</span>

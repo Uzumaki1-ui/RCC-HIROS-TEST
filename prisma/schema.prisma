@@ -146,7 +146,6 @@ model LeaveType {
   name        String   @unique
   code        String   @unique
   defaultDays Int      @default(0)
-  carryOver   Boolean  @default(false)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
