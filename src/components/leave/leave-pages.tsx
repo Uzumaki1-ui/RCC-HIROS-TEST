@@ -1141,6 +1141,43 @@ export function AllLeavePage() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════
+// LeavePage — unified entry point (like EvaluationPage)
+// ═══════════════════════════════════════════════════════════════
+
+export function LeavePage() {
+  const { has } = usePermissions();
+
+  const canRequest = has("leave.request");
+  const canApprove = has("leave.approve_l1") || has("leave.approve_l2");
+  const canViewAll = has("leave.view_all");
+  const canManageTypes = has("leave.manage_types");
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-rcc-text-primary">Leave Management</h1>
+        <p className="text-sm text-rcc-text-muted mt-0.5">
+          Submit and manage leave requests, approvals, and leave types.
+        </p>
+      </div>
+
+      {/* 1. My Leave Requests */}
+      {canRequest && <MyLeavePage />}
+
+      {/* 2. Leave Approvals */}
+      {canApprove && <LeaveApprovalPage />}
+
+      {/* 3. All Leave Requests */}
+      {canViewAll && <AllLeavePage />}
+
+      {/* 4. Leave Type Management */}
+      {canManageTypes && <LeaveTypeManagementPage />}
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────
 // Helpers
 // ───────────────────────────────────────────────────────────────

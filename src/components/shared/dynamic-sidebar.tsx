@@ -19,13 +19,9 @@ export function DynamicSidebar() {
   const { currentPage, setCurrentPage, sidebarCollapsed, setSidebarCollapsed } = useAuthStore();
 
   function handleClick(m: typeof MODULES[0]) {
-    if (m.key === "leave") {
-      if (has("leave.approve_l1") || has("leave.approve_l2")) setCurrentPage("leave", "approvals");
-      else if (has("leave.request")) setCurrentPage("leave", "mine");
-      else setCurrentPage("leave");
-    } else if (m.key === "evaluation") {
+    if (m.key === "leave" || m.key === "evaluation") {
       // Unified page — all features gated by permissions within the page
-      setCurrentPage("evaluation");
+      setCurrentPage(m.key);
     } else if (m.key === "attendance") {
       if (has("attendance.view")) setCurrentPage("attendance", "all");
       else setCurrentPage("attendance");

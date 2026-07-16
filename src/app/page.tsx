@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 
 import { EmployeeListPage, EmployeeFormPage, EmployeeProfilePage } from "@/components/profiling/employee-pages";
 import { AttendanceListPage, PremisesSettingsPage } from "@/components/attendance/attendance-pages";
-import { MyLeavePage, LeaveApprovalPage, LeaveTypeManagementPage, AllLeavePage } from "@/components/leave/leave-pages";
+import { LeavePage } from "@/components/leave/leave-pages";
 import { EvaluationPage } from "@/components/evaluation/evaluation-pages";
 import { ReportsPage } from "@/components/reports/report-pages";
 import { RoleListPage, RoleFormPage } from "@/components/admin/role-pages";
@@ -66,14 +66,10 @@ export default function HomePage() {
         <PermissionGuard require="attendance.view" fallback={<PermissionDenied />}><AttendanceListPage /></PermissionGuard>
       ); break;
     case "leave":
-      content = currentSubpage === "approvals" ? (
-        <PermissionGuard any={["leave.approve_l1", "leave.approve_l2"]} fallback={<PermissionDenied />}><LeaveApprovalPage /></PermissionGuard>
-      ) : currentSubpage === "types" ? (
-        <PermissionGuard require="leave.manage_types" fallback={<PermissionDenied />}><LeaveTypeManagementPage /></PermissionGuard>
-      ) : currentSubpage === "all" ? (
-        <PermissionGuard require="leave.view_all" fallback={<PermissionDenied />}><AllLeavePage /></PermissionGuard>
-      ) : (
-        <PermissionGuard require="leave.request" fallback={<PermissionDenied />}><MyLeavePage /></PermissionGuard>
+      content = (
+        <PermissionGuard any={["leave.request", "leave.approve_l1", "leave.approve_l2", "leave.view_all", "leave.manage_types"]} fallback={<PermissionDenied />}>
+          <LeavePage />
+        </PermissionGuard>
       ); break;
     case "evaluation":
       content = (
