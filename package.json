@@ -3,15 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "bash scripts/dev.sh start",
-    "dev:stop": "bash scripts/dev.sh stop",
-    "dev:restart": "bash scripts/dev.sh restart",
-    "dev:logs": "bash scripts/dev.sh logs",
-    "dev:status": "bash scripts/dev.sh status",
-    "dev:health": "bash scripts/dev.sh health",
-    "dev:nuke": "bash scripts/dev.sh nuke",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
+    "dev": "concurrently -k \"next dev -p 3000\"",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
@@ -94,13 +88,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.14",
+    "concurrently": "^10.0.3",
     "eslint": "^10",
     "eslint-config-next": "^16.2.10",
-    "pm2": "^7.0.3",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",
     "tw-animate-css": "^1.4.0",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "wait-on": "^9.0.10"
   }
 }
