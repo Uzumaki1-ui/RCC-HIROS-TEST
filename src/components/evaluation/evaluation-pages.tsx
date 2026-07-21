@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
   Plus, ArrowLeft, AlertTriangle,
-  CheckCircle2, FileText, Info, Trash2,
+  CheckCircle2, FileText, Info, Trash2, Archive,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
@@ -219,6 +219,25 @@ export function EvaluationFormsPage() {
     }
   };
 
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+
+  const handleArchive = async (periodId: string, periodName: string) => {
+    if (!confirm(`Archive "${periodName}"? It will be hidden from the active list but preserved for records.`)) return;
+    setArchivingId(periodId);
+    setError(null);
+    try {
+      await apiFetch(`/api/evaluation-periods/${periodId}`, { method: "DELETE" });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Archive failed.");
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  const activePeriods = useMemo(() => periods.filter((p) => p.status !== "archived"), [periods]);
+  const archivedPeriods = useMemo(() => periods.filter((p) => p.status === "archived"), [periods]);
+
   const handleSaveRetention = async () => {
     setRetentionSaving(true);
     setError(null);
@@ -316,13 +335,13 @@ export function EvaluationFormsPage() {
       {/* Period cards — simple toggle design */}
       {loading ? (
         <div className="text-center py-12 text-rcc-text-muted">Loading...</div>
-      ) : periods.length === 0 ? (
+      ) : activePeriods.length === 0 && archivedPeriods.length === 0 ? (
         <div className="bg-rcc-surface rounded-lg border border-rcc-border p-8 text-center text-rcc-text-muted">
           No evaluation periods found.
         </div>
       ) : (
         <div className="space-y-4">
-          {periods.map((p) => (
+          {activePeriods.map((p) => (
             <div key={p.id} className="bg-rcc-surface rounded-lg border border-rcc-border p-6 flex items-center justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
@@ -354,18 +373,56 @@ export function EvaluationFormsPage() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => handleToggle(p)}
-                disabled={togglingId === p.id}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors shrink-0 disabled:opacity-50 ${
-                  p.status === "open" ? "bg-green-500" : "bg-gray-300"
-                }`}
-                title={p.status === "open" ? "Click to close evaluation" : "Click to open evaluation"}
-              >
-                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
-                  p.status === "open" ? "translate-x-7" : "translate-x-1"
-                }`} />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {has("evaluation.manage_forms") && p.status !== "open" && (
+                  <button
+                    onClick={() => handleArchive(p.id, p.name)}
+                    disabled={archivingId === p.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg hover:text-rcc-primary transition-colors disabled:opacity-50"
+                    title="Archive this period"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                    {archivingId === p.id ? "Archiving..." : "Archive"}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleToggle(p)}
+                  disabled={togglingId === p.id}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50 ${
+                    p.status === "open" ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                  title={p.status === "open" ? "Click to close evaluation" : "Click to open evaluation"}
+                >
+                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
+                    p.status === "open" ? "translate-x-7" : "translate-x-1"
+                  }`} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Archived periods */}
+      {archivedPeriods.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-rcc-text-muted uppercase tracking-wide">
+            Archived ({archivedPeriods.length})
+          </h3>
+          {archivedPeriods.map((p) => (
+            <div key={p.id} className="bg-rcc-surface rounded-lg border border-rcc-border p-4 flex items-center justify-between gap-4 opacity-60">
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h4 className="text-sm font-semibold text-rcc-text-primary">{p.name}</h4>
+                  <StatusPill status={p.status} />
+                </div>
+                <p className="text-xs text-rcc-text-muted mt-1">
+                  {p.startDate ? new Date(p.startDate).toLocaleDateString() : "—"} – {p.endDate ? new Date(p.endDate).toLocaleDateString() : "—"}
+                  {p.evaluationsCount !== undefined && p.evaluationsCount > 0 && (
+                    <span className="ml-2">· {p.evaluationsCount} evaluation(s)</span>
+                  )}
+                </p>
+              </div>
             </div>
           ))}
         </div>

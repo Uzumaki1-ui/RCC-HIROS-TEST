@@ -141,36 +141,34 @@ export async function DELETE(
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
-    const group = await db.group.findUnique({
-      where: { id },
-      include: { _count: { select: { employees: true } } },
-    });
+    const group = await db.group.findUnique({ where: { id } });
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    if (group._count.employees > 0) {
+    if (!group.active) {
       return NextResponse.json(
-        {
-          error: `Cannot delete group: ${group._count.employees} employee(s) are still assigned. Reassign them first.`,
-        },
+        { error: "Group is already inactive." },
         { status: 400 }
       );
     }
 
-    await db.group.delete({ where: { id } });
+    const updated = await db.group.update({
+      where: { id },
+      data: { active: false },
+    });
 
     await db.auditLog.create({
       data: {
         userId: auth.user.id,
-        action: "Delete Group",
+        action: "Disable Group",
         entity: "Group",
         entityId: id,
         metadata: JSON.stringify({ name: group.name, code: group.code }),
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ group: updated });
   } catch (error) {
     console.error("[API /groups/[id] DELETE] Error:", error);
     return NextResponse.json(

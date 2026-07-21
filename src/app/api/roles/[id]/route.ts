@@ -254,43 +254,41 @@ export async function DELETE(
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
-    const role = await db.role.findUnique({
-      where: { id },
-      include: { _count: { select: { employees: true } } },
-    });
+    const role = await db.role.findUnique({ where: { id } });
     if (!role) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 });
     }
 
     if (role.isSystem) {
       return NextResponse.json(
-        { error: "System roles cannot be deleted" },
+        { error: "System roles cannot be disabled." },
         { status: 400 }
       );
     }
 
-    if (role._count.employees > 0) {
+    if (!role.active) {
       return NextResponse.json(
-        {
-          error: `Cannot delete role: ${role._count.employees} employee(s) are still assigned. Reassign them first.`,
-        },
+        { error: "Role is already inactive." },
         { status: 400 }
       );
     }
 
-    await db.role.delete({ where: { id } });
+    const updated = await db.role.update({
+      where: { id },
+      data: { active: false },
+    });
 
     await db.auditLog.create({
       data: {
         userId: auth.user.id,
-        action: "Delete Role",
+        action: "Disable Role",
         entity: "Role",
         entityId: id,
         metadata: JSON.stringify({ name: role.name }),
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ role: updated });
   } catch (error) {
     console.error("[API /roles/[id] DELETE] Error:", error);
     return NextResponse.json(

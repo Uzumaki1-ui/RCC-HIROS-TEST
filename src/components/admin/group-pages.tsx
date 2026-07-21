@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
-  Plus, Search, Pencil, Trash2, ArrowLeft, Save, Building2,
-  Users as UsersIcon, AlertTriangle,
+  Plus, Search, Pencil, ArrowLeft, Save, Building2,
+  Users as UsersIcon, AlertTriangle, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
@@ -34,8 +34,8 @@ export function GroupListPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [toggleTarget, setToggleTarget] = useState<Group | null>(null);
+  const [toggling, setToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadGroups = useCallback(async () => {
@@ -66,17 +66,24 @@ export function GroupListPage() {
     );
   }, [groups, search]);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  const handleToggleActive = async () => {
+    if (!toggleTarget) return;
+    setToggling(true);
     try {
-      await apiFetch(`/api/groups/${deleteTarget.id}`, { method: "DELETE" });
-      setDeleteTarget(null);
+      if (toggleTarget.active) {
+        await apiFetch(`/api/groups/${toggleTarget.id}`, { method: "DELETE" });
+      } else {
+        await apiFetch(`/api/groups/${toggleTarget.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ active: true }),
+        });
+      }
+      setToggleTarget(null);
       loadGroups();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
+      setError(err instanceof Error ? err.message : "Toggle failed.");
     } finally {
-      setDeleting(false);
+      setToggling(false);
     }
   };
 
@@ -153,12 +160,20 @@ export function GroupListPage() {
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        onClick={() => setDeleteTarget(group)}
-                        className="p-1.5 rounded-md text-rcc-text-secondary hover:bg-red-50 hover:text-rcc-error transition-colors"
-                        title="Delete group"
-                        aria-label="Delete group"
+                        onClick={() => setToggleTarget(group)}
+                        className={`p-1.5 rounded-md transition-colors ${
+                          group.active
+                            ? "text-rcc-text-secondary hover:bg-red-50 hover:text-rcc-error"
+                            : "text-rcc-text-secondary hover:bg-green-50 hover:text-green-600"
+                        }`}
+                        title={group.active ? "Disable group" : "Enable group"}
+                        aria-label={group.active ? "Disable group" : "Enable group"}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {group.active ? (
+                          <ToggleRight className="h-3.5 w-3.5" />
+                        ) : (
+                          <ToggleLeft className="h-3.5 w-3.5" />
+                        )}
                       </button>
                     </>
                   )}
@@ -203,37 +218,45 @@ export function GroupListPage() {
         </div>
       )}
 
-      {/* Delete confirmation modal */}
-      {deleteTarget && (
+      {/* Enable/Disable confirmation modal */}
+      {toggleTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-rcc-surface rounded-lg shadow-xl w-full max-w-md p-6">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-5 w-5 text-rcc-error" />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                toggleTarget.active ? "bg-red-50" : "bg-green-50"
+              }`}>
+                <AlertTriangle className={`h-5 w-5 ${toggleTarget.active ? "text-rcc-error" : "text-green-600"}`} />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-rcc-text-primary">
-                  Delete group &ldquo;{deleteTarget.name}&rdquo;?
+                  {toggleTarget.active ? "Disable" : "Enable"} group &ldquo;{toggleTarget.name}&rdquo;?
                 </h3>
                 <p className="text-sm text-rcc-text-muted mt-1">
-                  This action cannot be undone. Groups with assigned employees cannot be deleted.
+                  {toggleTarget.active
+                    ? "This group will be hidden from new employee assignments. Existing employees will keep their assignment."
+                    : "This group will become available for new employee assignments."}
                 </p>
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
+                onClick={() => setToggleTarget(null)}
+                disabled={toggling}
                 className="px-4 py-2 rounded-md text-sm font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 rounded-md text-sm font-semibold bg-rcc-error text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                onClick={handleToggleActive}
+                disabled={toggling}
+                className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors disabled:opacity-50 ${
+                  toggleTarget.active
+                    ? "bg-rcc-error text-white hover:bg-red-700"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                }`}
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {toggling ? "Processing..." : toggleTarget.active ? "Disable" : "Enable"}
               </button>
             </div>
           </div>

@@ -117,10 +117,7 @@ export async function DELETE(
     if (!auth.ok) return auth.response;
 
     const { id } = await params;
-    const period = await db.evaluationPeriod.findUnique({
-      where: { id },
-      include: { _count: { select: { evaluations: true } } },
-    });
+    const period = await db.evaluationPeriod.findUnique({ where: { id } });
     if (!period) {
       return NextResponse.json(
         { error: "Evaluation period not found" },
@@ -128,28 +125,29 @@ export async function DELETE(
       );
     }
 
-    if (period._count.evaluations > 0) {
+    if (period.status === "archived") {
       return NextResponse.json(
-        {
-          error: `Cannot delete period: ${period._count.evaluations} evaluation(s) exist. Close it instead.`,
-        },
+        { error: "Period is already archived." },
         { status: 400 }
       );
     }
 
-    await db.evaluationPeriod.delete({ where: { id } });
+    const updated = await db.evaluationPeriod.update({
+      where: { id },
+      data: { status: "archived" },
+    });
 
     await db.auditLog.create({
       data: {
         userId: auth.user.id,
-        action: "Delete Evaluation Period",
+        action: "Archive Evaluation Period",
         entity: "EvaluationPeriod",
         entityId: id,
-        metadata: JSON.stringify({ name: period.name }),
+        metadata: JSON.stringify({ name: period.name, previousStatus: period.status }),
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ period: updated });
   } catch (error) {
     console.error("[API /evaluation-periods/[id] DELETE] Error:", error);
     return NextResponse.json(

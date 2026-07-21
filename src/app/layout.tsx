@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RCC-HIROS — Human Integrated Resource Operations System",
+  title: "HIROS",
   description:
     "Web-based HRIS for Republic Central Colleges. Employee profiling, performance evaluation, leave management, attendance tracking, and dynamic role-based access control for institutional HR operations.",
   icons: {
