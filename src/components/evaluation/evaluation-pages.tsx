@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
   Plus, ArrowLeft, AlertTriangle,
   CheckCircle2, FileText, Info, Trash2,
