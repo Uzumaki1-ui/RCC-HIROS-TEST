@@ -367,7 +367,6 @@ export function EvaluationFormsPage() {
     </div>
   );
 }
-}
 
 // ═══════════════════════════════════════════════════════════════
 // SubmitEvaluationPage
