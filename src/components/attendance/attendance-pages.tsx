@@ -69,11 +69,11 @@ function todayISO(): string {
 }
 
 function formatTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "";
   try {
     return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } catch {
-    return "—";
+    return "";
   }
 }
 
@@ -264,17 +264,17 @@ export function AttendanceListPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-rcc-text-primary truncate">
-                              {emp ? `${emp.firstName} ${emp.lastName}` : "—"}
+                              {emp ? `${emp.firstName} ${emp.lastName}` : ""}
                             </p>
-                            <p className="text-xs text-rcc-text-muted font-mono">{emp?.employeeId ?? "—"}</p>
+                            <p className="text-xs text-rcc-text-muted font-mono">{emp?.employeeId ?? ""}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-rcc-text-secondary">
-                        {emp?.group?.name ?? <span className="text-rcc-text-muted">—</span>}
+                        {emp?.group?.name ?? <span className="text-rcc-text-muted">-</span>}
                       </td>
                       <td className="px-4 py-3 text-rcc-text-secondary">
-                        {emp?.role?.name ?? <span className="text-rcc-text-muted">—</span>}
+                        {emp?.role?.name ?? <span className="text-rcc-text-muted">-</span>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -418,7 +418,7 @@ function EditAttendanceModal({
   const [saving, setSaving] = useState(false);
 
   const emp = record.employee;
-  const empName = emp ? `${emp.firstName} ${emp.lastName}` : "—";
+  const empName = emp ? `${emp.firstName} ${emp.lastName}` : "";
 
   const handleSave = async () => {
     if (!remarks.trim()) {
@@ -502,7 +502,7 @@ function EditAttendanceModal({
               </Field>
               <Field label="Clock-Out On Premise Override" hint="Blank = no override.">
                 <select value={clockOutOnPremise} onChange={(e) => setClockOutOnPremise(e.target.value)} className={inputClass}>
-                  <option value="">— No override —</option>
+                  <option value="">No override</option>
                   <option value="true">On Premise</option>
                   <option value="false">Off Premise</option>
                 </select>

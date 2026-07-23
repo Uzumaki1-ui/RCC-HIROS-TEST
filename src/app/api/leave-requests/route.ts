@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
       }
       if (!user.isSystem && !user.permissions.includes("leave.approve_l1")) {
         return NextResponse.json(
-          { error: "Forbidden — insufficient permissions" },
+          { error: "Forbidden - insufficient permissions" },
           { status: 403 }
         );
       }
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
       }
       if (!user.isSystem && !user.permissions.includes("leave.approve_l2")) {
         return NextResponse.json(
-          { error: "Forbidden — insufficient permissions" },
+          { error: "Forbidden - insufficient permissions" },
           { status: 403 }
         );
       }

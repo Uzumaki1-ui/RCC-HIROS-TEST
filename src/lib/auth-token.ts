@@ -187,7 +187,7 @@ export async function requirePermission(
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Forbidden — insufficient permissions" },
+        { error: "Forbidden: insufficient permissions" },
         { status: 403 }
       ),
     };
@@ -209,7 +209,7 @@ export async function requireAnyPermission(
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Forbidden — insufficient permissions" },
+        { error: "Forbidden: insufficient permissions" },
         { status: 403 }
       ),
     };

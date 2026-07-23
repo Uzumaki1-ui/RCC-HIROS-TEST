@@ -66,10 +66,10 @@ export async function POST(
     // Self-edit: only allow adding to own profile
     const isSelfEdit = auth.user.id === id;
     if (isSelfEdit && !auth.user.permissions.includes("profile.selfEdit")) {
-      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
     }
     if (!auth.user.permissions.includes("profiling.edit") && !isSelfEdit) {
-      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
     }
 
     const employee = await db.employee.findUnique({

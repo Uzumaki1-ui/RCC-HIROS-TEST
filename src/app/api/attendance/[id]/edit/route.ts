@@ -77,7 +77,7 @@ export async function POST(
       // If they only have edit_on_premise, they cannot edit times
       // We already filtered above; this is a safety net.
       return NextResponse.json(
-        { error: "Forbidden — attendance.edit permission required for time edits" },
+        { error: "Forbidden - attendance.edit permission required for time edits" },
         { status: 403 }
       );
     }
@@ -87,7 +87,7 @@ export async function POST(
       !user.permissions.includes("attendance.edit_on_premise")
     ) {
       return NextResponse.json(
-        { error: "Forbidden — attendance.edit_on_premise permission required for on-premise edits" },
+        { error: "Forbidden - attendance.edit_on_premise permission required for on-premise edits" },
         { status: 403 }
       );
     }

@@ -73,7 +73,7 @@ export async function PUT(
     const isSelfEdit = auth.user.id === id && auth.user.permissions.includes("profile.selfEdit");
     const isAdmin = auth.user.permissions.includes("profiling.edit") || auth.user.permissions.includes("profile.editAll");
     if (!isAdmin && !isSelfEdit) {
-      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden - insufficient permissions" }, { status: 403 });
     }
 
     const existing = await db.employeeFile.findFirst({
@@ -161,7 +161,7 @@ export async function DELETE(
     const isSelfEdit = auth.user.id === id && auth.user.permissions.includes("profile.selfEdit");
     const isAdmin = auth.user.permissions.includes("profiling.edit") || auth.user.permissions.includes("profile.editAll");
     if (!isAdmin && !isSelfEdit) {
-      return NextResponse.json({ error: "Forbidden — insufficient permissions" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden - insufficient permissions" }, { status: 403 });
     }
 
     const file = await db.employeeFile.findFirst({

@@ -21,7 +21,7 @@ const DEFAULT_PREMISES: PremisesConfig = {
   lat: 15.1428,
   lng: 120.5886,
   radiusMeters: 200,
-  label: "Republic Central Colleges — Angeles",
+  label: "Republic Central Colleges - Angeles",
 };
 
 const SETTING_KEY = "premises_config";

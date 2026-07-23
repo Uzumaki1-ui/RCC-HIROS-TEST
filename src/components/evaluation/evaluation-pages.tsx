@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import {
   Plus, ArrowLeft, AlertTriangle,
-  CheckCircle2, FileText, Info, Trash2, Archive,
+  CheckCircle2, FileText, Info, Trash2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
@@ -12,6 +12,7 @@ import {
   usePagination,
   PaginationControls,
 } from "@/components/shared/table-pagination-v2";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 // ═══════════════════════════════════════════════════════════════
 // Types
@@ -42,7 +43,7 @@ interface EvalPeriod {
   name: string;
   startDate: string;
   endDate: string;
-  status: "open" | "closed" | "archived";
+  status: "open" | "closed";
   createdAt: string;
   evaluationsCount?: number;
 }
@@ -108,28 +109,22 @@ export function EvaluationFormsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [resetting, setResetting] = useState(false);
   const [resettingPeriodId, setResettingPeriodId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [retentionMonths, setRetentionMonths] = useState(12);
-  const [retentionSaving, setRetentionSaving] = useState(false);
-  const [cleaningUp, setCleaningUp] = useState(false);
-  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; variant: "danger" | "warning"; onConfirm: () => void } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [p, f, r] = await Promise.all([
+      const [p, f] = await Promise.all([
         apiFetch<{ periods: EvalPeriod[] }>("/api/evaluation-periods"),
         apiFetch<{ forms: EvalForm[] }>("/api/evaluation-forms"),
-        apiFetch<{ retentionMonths: number }>("/api/evaluations/cleanup").catch(() => ({ retentionMonths: 12 })),
       ]);
       setPeriods(p.periods ?? []);
       setForms(f.forms ?? []);
-      setRetentionMonths(r.retentionMonths ?? 12);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load.");
     } finally {
@@ -156,24 +151,6 @@ export function EvaluationFormsPage() {
       setError(err instanceof Error ? err.message : "Toggle failed.");
     } finally {
       setTogglingId(null);
-    }
-  };
-
-  const handleReset = async () => {
-    if (!confirm("WARNING: This will permanently delete ALL submitted evaluations. This cannot be undone. Are you sure?")) return;
-    if (!confirm("Last chance — this deletes every evaluation response in the system. Continue?")) return;
-    setResetting(true);
-    setError(null);
-    try {
-      await apiFetch("/api/evaluations/reset", {
-        method: "POST",
-        body: JSON.stringify({ confirm: true }),
-      });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed.");
-    } finally {
-      setResetting(false);
     }
   };
 
@@ -206,67 +183,44 @@ export function EvaluationFormsPage() {
   };
 
   const handleResetPeriod = async (periodId: string, periodName: string) => {
-    if (!confirm(`Delete all evaluations for "${periodName}"? This cannot be undone.`)) return;
-    setResettingPeriodId(periodId);
-    setError(null);
-    try {
-      await apiFetch(`/api/evaluation-periods/${periodId}/reset`, { method: "POST" });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed.");
-    } finally {
-      setResettingPeriodId(null);
-    }
+    setConfirmState({
+      open: true,
+      title: `Clear evaluations for "${periodName}"?`,
+      message: "This will permanently delete all evaluations for this period. This cannot be undone.",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmState(null);
+        setResettingPeriodId(periodId);
+        setError(null);
+        try {
+          await apiFetch(`/api/evaluation-periods/${periodId}/reset`, { method: "POST" });
+          load();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Reset failed.");
+        } finally {
+          setResettingPeriodId(null);
+        }
+      },
+    });
   };
 
-  const [archivingId, setArchivingId] = useState<string | null>(null);
-
-  const handleArchive = async (periodId: string, periodName: string) => {
-    if (!confirm(`Archive "${periodName}"? It will be hidden from the active list but preserved for records.`)) return;
-    setArchivingId(periodId);
-    setError(null);
-    try {
-      await apiFetch(`/api/evaluation-periods/${periodId}`, { method: "DELETE" });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Archive failed.");
-    } finally {
-      setArchivingId(null);
-    }
-  };
-
-  const activePeriods = useMemo(() => periods.filter((p) => p.status !== "archived"), [periods]);
-  const archivedPeriods = useMemo(() => periods.filter((p) => p.status === "archived"), [periods]);
-
-  const handleSaveRetention = async () => {
-    setRetentionSaving(true);
-    setError(null);
-    try {
-      await apiFetch("/api/evaluations/cleanup", {
-        method: "PATCH",
-        body: JSON.stringify({ retentionMonths }),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save retention setting.");
-    } finally {
-      setRetentionSaving(false);
-    }
-  };
-
-  const handleCleanup = async () => {
-    if (!confirm(`Delete all evaluations older than ${retentionMonths} months? This cannot be undone.`)) return;
-    setCleaningUp(true);
-    setCleanupResult(null);
-    setError(null);
-    try {
-      const result = await apiFetch<{ deletedEvaluations: number; retentionMonths: number }>("/api/evaluations/cleanup", { method: "POST" });
-      setCleanupResult(`Deleted ${result.deletedEvaluations} evaluation(s) older than ${result.retentionMonths} months.`);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Cleanup failed.");
-    } finally {
-      setCleaningUp(false);
-    }
+  const handleDeletePeriod = async (periodId: string, periodName: string) => {
+    setConfirmState({
+      open: true,
+      title: `Delete "${periodName}"?`,
+      message: "This will permanently delete the evaluation period. This cannot be undone.",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmState(null);
+        setError(null);
+        try {
+          await apiFetch(`/api/evaluation-periods/${periodId}`, { method: "DELETE" });
+          load();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Delete failed.");
+        }
+      },
+    });
   };
 
   return (
@@ -318,7 +272,7 @@ export function EvaluationFormsPage() {
           <Info className="h-5 w-5" />
         </div>
         <div className="text-sm">
-          <p className="font-semibold text-rcc-text-primary">RCC Faculty Evaluation Tool — 34 Criteria</p>
+          <p className="font-semibold text-rcc-text-primary">RCC Faculty Evaluation Tool - 34 Criteria</p>
           <p className="text-rcc-text-muted mt-1">
             All evaluations use the official RCC faculty evaluation form across 7 categories:
             <span className="text-rcc-text-secondary"> {EVAL_CATEGORIES.join(" · ")}</span>.
@@ -335,13 +289,13 @@ export function EvaluationFormsPage() {
       {/* Period cards — simple toggle design */}
       {loading ? (
         <div className="text-center py-12 text-rcc-text-muted">Loading...</div>
-      ) : activePeriods.length === 0 && archivedPeriods.length === 0 ? (
+      ) : periods.length === 0 ? (
         <div className="bg-rcc-surface rounded-lg border border-rcc-border p-8 text-center text-rcc-text-muted">
           No evaluation periods found.
         </div>
       ) : (
         <div className="space-y-4">
-          {activePeriods.map((p) => (
+          {periods.map((p) => (
             <div key={p.id} className="bg-rcc-surface rounded-lg border border-rcc-border p-6 flex items-center justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
@@ -355,8 +309,8 @@ export function EvaluationFormsPage() {
                 </div>
                 <p className="text-sm text-rcc-text-muted mt-1">
                   {p.status === "open"
-                    ? "Evaluation is active — Deans can submit evaluations."
-                    : "Evaluation is closed — Deans cannot submit."}
+                    ? "Evaluation is active. Deans can submit evaluations."
+                    : "Evaluation is closed. Deans cannot submit."}
                 </p>
                 {p.evaluationsCount !== undefined && p.evaluationsCount > 0 && (
                   <div className="flex items-center gap-3 mt-1">
@@ -374,15 +328,14 @@ export function EvaluationFormsPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {has("evaluation.manage_forms") && p.status !== "open" && (
+                {has("evaluation.manage_forms") && (
                   <button
-                    onClick={() => handleArchive(p.id, p.name)}
-                    disabled={archivingId === p.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg hover:text-rcc-primary transition-colors disabled:opacity-50"
-                    title="Archive this period"
+                    onClick={() => handleDeletePeriod(p.id, p.name)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                    title="Delete this period"
                   >
-                    <Archive className="h-3.5 w-3.5" />
-                    {archivingId === p.id ? "Archiving..." : "Archive"}
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
                   </button>
                 )}
                 <button
@@ -403,102 +356,17 @@ export function EvaluationFormsPage() {
         </div>
       )}
 
-      {/* Archived periods */}
-      {archivedPeriods.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-rcc-text-muted uppercase tracking-wide">
-            Archived ({archivedPeriods.length})
-          </h3>
-          {archivedPeriods.map((p) => (
-            <div key={p.id} className="bg-rcc-surface rounded-lg border border-rcc-border p-4 flex items-center justify-between gap-4 opacity-60">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h4 className="text-sm font-semibold text-rcc-text-primary">{p.name}</h4>
-                  <StatusPill status={p.status} />
-                </div>
-                <p className="text-xs text-rcc-text-muted mt-1">
-                  {p.startDate ? new Date(p.startDate).toLocaleDateString() : "—"} – {p.endDate ? new Date(p.endDate).toLocaleDateString() : "—"}
-                  {p.evaluationsCount !== undefined && p.evaluationsCount > 0 && (
-                    <span className="ml-2">· {p.evaluationsCount} evaluation(s)</span>
-                  )}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Reset all evaluations — only for roles with evaluation.reset permission */}
-      {has("evaluation.reset") && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-5 flex items-center justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-semibold text-red-800">Reset All Evaluations</h3>
-            <p className="text-xs text-red-600 mt-1">Permanently deletes ALL submitted evaluations across ALL periods. Use "Clear this period" above for targeted deletion. This cannot be undone.</p>
-          </div>
-          <button
-            onClick={handleReset}
-            disabled={resetting}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 shrink-0"
-          >
-            <Trash2 className="h-4 w-4" />
-            {resetting ? "Resetting..." : "Reset All"}
-          </button>
-        </div>
-      )}
-
-      {/* Retention settings — only for roles with evaluation.manage_forms */}
-      {has("evaluation.manage_forms") && (
-        <div className="bg-rcc-surface rounded-lg border border-rcc-border p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-rcc-text-primary">Retention Policy</h3>
-          <p className="text-xs text-rcc-text-muted">Automatically delete evaluations after a set number of months from their submission date. Old evaluations are cleaned up when you click "Run Cleanup" or can be triggered by a scheduled task.</p>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-rcc-text-secondary">Delete evaluations older than</span>
-            <input
-              type="number"
-              min="1"
-              max="120"
-              value={retentionMonths}
-              onChange={(e) => setRetentionMonths(Number(e.target.value))}
-              className="w-20 px-2 py-1 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary text-center"
-            />
-            <span className="text-sm text-rcc-text-secondary">months</span>
-            <button
-              onClick={handleSaveRetention}
-              disabled={retentionSaving}
-              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 disabled:opacity-50"
-            >
-              {retentionSaving ? "Saving..." : "Save"}
-            </button>
-            <button
-              onClick={handleCleanup}
-              disabled={cleaningUp}
-              className="px-3 py-1.5 rounded-md text-xs font-semibold border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg disabled:opacity-50"
-            >
-              {cleaningUp ? "Cleaning..." : "Run Cleanup Now"}
-            </button>
-          </div>
-          {cleanupResult && (
-            <p className="text-xs text-green-700 font-medium">{cleanupResult}</p>
-          )}
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmState?.open ?? false}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        variant={confirmState?.variant ?? "danger"}
+        onConfirm={() => { confirmState?.onConfirm(); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
-
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    open: "bg-green-50 text-green-700 border-green-200",
-    closed: "bg-amber-50 text-amber-700 border-amber-200",
-    archived: "bg-rcc-bg text-rcc-text-muted border-rcc-border",
-  };
-  const label: Record<string, string> = { open: "Open", closed: "Closed", archived: "Archived" };
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${map[status] ?? map.archived}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === "open" ? "bg-green-500" : status === "closed" ? "bg-amber-500" : "bg-rcc-text-muted"}`} />
-      {label[status] ?? status}
-    </span>
-  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -715,7 +583,7 @@ export function SubmitEvaluationPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Evaluation Period" required hint={!selectedPeriod ? "Select an open period to begin scoring." : undefined}>
             <select value={periodId} onChange={(e) => setPeriodId(e.target.value)} className={inputClass}>
-              <option value="">— Select period —</option>
+              <option value="">Select period...</option>
               {periods.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -723,7 +591,7 @@ export function SubmitEvaluationPage() {
           </Field>
           <Field label="Employee" required hint="Limited to your group.">
             <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className={inputClass}>
-              <option value="">— Select employee —</option>
+              <option value="">Select employee...</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.firstName} {emp.lastName} ({emp.employeeId})
@@ -1075,23 +943,23 @@ function ResultsTable({ scope }: { scope: string }) {
               ) : (
                 currentData.map((ev) => (
                   <tr key={ev.id} className="hover:bg-rcc-bg/30 transition-colors">
-                    <td className="px-4 py-3 text-rcc-text-secondary">{ev.period?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-rcc-text-secondary">{ev.period?.name ?? ""}</td>
                     {showEmployee && (
                       <td className="px-4 py-3">
                         <div>
-                          <p className="font-medium text-rcc-text-primary">{ev.employee?.name ?? "—"}</p>
+                          <p className="font-medium text-rcc-text-primary">{ev.employee?.name ?? ""}</p>
                           <p className="text-xs text-rcc-text-muted font-mono">{ev.employee?.employeeId ?? ""}</p>
                         </div>
                       </td>
                     )}
                     {showEmployee && (
-                      <td className="px-4 py-3 text-rcc-text-secondary text-sm">{ev.employee?.group?.name ?? "\u2014"}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary text-sm">{ev.employee?.group?.name ?? ""}</td>
                     )}
                     {showEmployee && (
-                      <td className="px-4 py-3 text-rcc-text-secondary text-sm">{ev.employee?.role?.name ?? "\u2014"}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary text-sm">{ev.employee?.role?.name ?? ""}</td>
                     )}
                     {showEvaluator && (
-                      <td className="px-4 py-3 text-rcc-text-secondary">{ev.evaluator?.name ?? "—"}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary">{ev.evaluator?.name ?? ""}</td>
                     )}
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -1106,11 +974,11 @@ function ResultsTable({ scope }: { scope: string }) {
                       {ev.totalScore !== null ? (
                         <span className="font-bold text-rcc-text-primary tabular-nums">{ev.totalScore.toFixed(2)}</span>
                       ) : (
-                        <span className="text-rcc-text-muted">—</span>
+                        <span className="text-rcc-text-muted">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-rcc-text-muted">
-                      {ev.submittedAt ? new Date(ev.submittedAt).toLocaleDateString() : "—"}
+                      {ev.submittedAt ? new Date(ev.submittedAt).toLocaleDateString() : ""}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -1145,7 +1013,7 @@ function EvaluationDetailsModal({ evaluation, onClose }: { evaluation: Evaluatio
           <div>
             <h3 className="text-base font-semibold text-rcc-text-primary">Evaluation Details</h3>
             <p className="text-xs text-rcc-text-muted">
-              {evaluation.period?.name ?? "—"} · {evaluation.form?.name ?? "—"}
+              {evaluation.period?.name ?? ""} · {evaluation.form?.name ?? ""}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-md text-rcc-text-muted hover:bg-rcc-bg hover:text-rcc-text-primary transition-colors" aria-label="Close">
@@ -1156,11 +1024,11 @@ function EvaluationDetailsModal({ evaluation, onClose }: { evaluation: Evaluatio
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-xs text-rcc-text-muted uppercase">Employee</p>
-              <p className="text-rcc-text-primary font-medium">{evaluation.employee?.name ?? "—"}</p>
+              <p className="text-rcc-text-primary font-medium">{evaluation.employee?.name ?? ""}</p>
             </div>
             <div>
               <p className="text-xs text-rcc-text-muted uppercase">Evaluator</p>
-              <p className="text-rcc-text-primary font-medium">{evaluation.evaluator?.name ?? "—"}</p>
+              <p className="text-rcc-text-primary font-medium">{evaluation.evaluator?.name ?? ""}</p>
             </div>
             <div>
               <p className="text-xs text-rcc-text-muted uppercase">Status</p>
@@ -1169,7 +1037,7 @@ function EvaluationDetailsModal({ evaluation, onClose }: { evaluation: Evaluatio
             <div>
               <p className="text-xs text-rcc-text-muted uppercase">Total Score</p>
               <p className="text-rcc-text-primary font-bold tabular-nums">
-                {evaluation.totalScore !== null ? evaluation.totalScore.toFixed(2) : "—"}
+                {evaluation.totalScore !== null ? evaluation.totalScore.toFixed(2) : ""}
               </p>
             </div>
           </div>

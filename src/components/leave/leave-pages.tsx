@@ -13,10 +13,19 @@ import {
   usePagination,
   PaginationControls,
 } from "@/components/shared/table-pagination-v2";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 // ═══════════════════════════════════════════════════════════════
 // Types
 // ═══════════════════════════════════════════════════════════════
+
+interface ConfirmDialogState {
+  open: boolean;
+  title: string;
+  message: string;
+  variant: "danger" | "warning";
+  onConfirm: () => void;
+}
 
 interface LeaveType {
   id: string;
@@ -109,6 +118,7 @@ export function MyLeavePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [balanceWarning, setBalanceWarning] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmDialogState | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -227,7 +237,7 @@ export function MyLeavePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field label="Leave Type" required>
               <select value={formLeaveType} onChange={(e) => setFormLeaveType(e.target.value)} className={inputClass}>
-                <option value="">— Select —</option>
+                <option value="">Select...</option>
                 {leaveTypes.map((lt) => (
                   <option key={lt.id} value={lt.id}>{lt.name} ({lt.code})</option>
                 ))}
@@ -308,7 +318,7 @@ export function MyLeavePage() {
                 currentData.map((r) => (
                   <tr key={r.id} className="hover:bg-rcc-bg/30 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs text-rcc-text-secondary">{r.requestNo}</td>
-                    <td className="px-4 py-3 text-rcc-text-primary font-medium">{r.leaveType?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-rcc-text-primary font-medium">{r.leaveType?.name ?? ""}</td>
                     <td className="px-4 py-3 text-rcc-text-secondary">
                       {formatDate(r.startDate)} → {formatDate(r.endDate)}
                     </td>
@@ -335,7 +345,7 @@ export function MyLeavePage() {
                           <FileText className="h-3.5 w-3.5" /> View
                         </button>
                       ) : (
-                        <span className="text-xs text-rcc-text-muted">—</span>
+                        <span className="text-xs text-rcc-text-muted">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -349,13 +359,19 @@ export function MyLeavePage() {
                         </button>
                         {(r.status === "pending_l1" || r.status === "pending_l2") && (
                           <button
-                            onClick={async () => {
-                              if (confirm("Cancel this leave request? This cannot be undone.")) {
-                                try {
-                                  await apiFetch(`/api/leave-requests/${r.id}`, { method: "DELETE" });
-                                  loadRequests();
-                                } catch (e) { alert(e instanceof Error ? e.message : "Failed to cancel"); }
-                              }
+                            onClick={() => {
+                              setConfirmState({
+                                open: true,
+                                title: "Cancel Leave Request",
+                                message: "Are you sure you want to cancel this leave request? This cannot be undone.",
+                                variant: "danger",
+                                onConfirm: () => {
+                                  setConfirmState(null);
+                                  apiFetch(`/api/leave-requests/${r.id}`, { method: "DELETE" })
+                                    .then(() => loadRequests())
+                                    .catch((e) => { setError(e instanceof Error ? e.message : "Failed to cancel"); });
+                                },
+                              });
                             }}
                             className="p-1.5 rounded hover:bg-red-50 text-rcc-text-muted hover:text-rcc-error transition-colors"
                             title="Cancel request"
@@ -383,7 +399,7 @@ export function MyLeavePage() {
             </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between"><span className="text-rcc-text-muted">Request No:</span><span className="font-mono text-rcc-text-primary">{viewingRequest.requestNo}</span></div>
-              <div className="flex justify-between"><span className="text-rcc-text-muted">Type:</span><span className="text-rcc-text-primary">{viewingRequest.leaveType?.name ?? "—"}</span></div>
+              <div className="flex justify-between"><span className="text-rcc-text-muted">Type:</span><span className="text-rcc-text-primary">{viewingRequest.leaveType?.name ?? ""}</span></div>
               <div className="flex justify-between"><span className="text-rcc-text-muted">Dates:</span><span className="text-rcc-text-primary">{formatDate(viewingRequest.startDate)} → {formatDate(viewingRequest.endDate)}</span></div>
               <div className="flex justify-between"><span className="text-rcc-text-muted">Working Days:</span><span className="text-rcc-text-primary tabular-nums">{viewingRequest.workdays}</span></div>
               <div className="flex justify-between"><span className="text-rcc-text-muted">Status:</span><StatusBadge status={viewingRequest.status} /></div>
@@ -414,10 +430,10 @@ export function MyLeavePage() {
                     {viewingRequest.approvals.map((a) => (
                       <div key={a.id} className="text-xs text-rcc-text-secondary flex items-center gap-2">
                         <span className="font-medium">L{a.level}</span>
-                        <span>{a.approverName ?? "—"}</span>
+                        <span>{a.approverName ?? ""}</span>
                         <span className={a.status === "approved" ? "text-green-600" : a.status === "rejected" ? "text-red-600" : "text-rcc-text-muted"}>{a.status}</span>
-                        <span>{a.actedAt ? new Date(a.actedAt).toLocaleDateString() : "—"}</span>
-                        {a.remarks && <span className="italic">— "{a.remarks}"</span>}
+                        <span>{a.actedAt ? new Date(a.actedAt).toLocaleDateString() : ""}</span>
+                        {a.remarks && <span className="italic">&ldquo;{a.remarks}&rdquo;</span>}
                       </div>
                     ))}
                   </div>
@@ -427,14 +443,22 @@ export function MyLeavePage() {
             <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-rcc-border">
               {(viewingRequest.status === "pending_l1" || viewingRequest.status === "pending_l2") && (
                 <button
-                  onClick={async () => {
-                    if (confirm("Cancel this leave request? This cannot be undone.")) {
-                      try {
-                        await apiFetch(`/api/leave-requests/${viewingRequest.id}`, { method: "DELETE" });
-                        setViewingRequest(null);
-                        loadRequests();
-                      } catch (e) { alert(e instanceof Error ? e.message : "Failed to cancel"); }
-                    }
+                  onClick={() => {
+                    setConfirmState({
+                      open: true,
+                      title: "Cancel Leave Request",
+                      message: "Are you sure you want to cancel this leave request? This cannot be undone.",
+                      variant: "danger",
+                      onConfirm: () => {
+                        setConfirmState(null);
+                        apiFetch(`/api/leave-requests/${viewingRequest.id}`, { method: "DELETE" })
+                          .then(() => {
+                            setViewingRequest(null);
+                            loadRequests();
+                          })
+                          .catch((e) => { setError(e instanceof Error ? e.message : "Failed to cancel"); });
+                      },
+                    });
                   }}
                   className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700"
                 >
@@ -447,6 +471,14 @@ export function MyLeavePage() {
         </div>
       )}
 
+      <ConfirmDialog
+        open={confirmState?.open ?? false}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        variant={confirmState?.variant ?? "danger"}
+        onConfirm={() => { confirmState?.onConfirm(); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
@@ -624,7 +656,7 @@ export function LeaveApprovalPage() {
               </button>
             </div>
             <p className="text-xs text-rcc-text-muted mb-3">
-              Request <span className="font-mono">{actionTarget.req.requestNo}</span> —{" "}
+              Request <span className="font-mono">{actionTarget.req.requestNo}</span> -{" "}
               {actionTarget.req.employee ? `${actionTarget.req.employee.firstName} ${actionTarget.req.employee.lastName}` : "Unknown"}
             </p>
             {actionTarget.action === "recall" ? (
@@ -704,7 +736,7 @@ function RequestCard({
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         <div>
           <dt className="text-xs text-rcc-text-muted">Leave Type</dt>
-          <dd className="text-rcc-text-primary font-medium">{req.leaveType?.name ?? "—"}</dd>
+          <dd className="text-rcc-text-primary font-medium">{req.leaveType?.name ?? ""}</dd>
         </div>
         <div>
           <dt className="text-xs text-rcc-text-muted">Workdays</dt>
@@ -801,6 +833,7 @@ export function LeaveTypeManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<LeaveType | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmDialogState | null>(null);
 
   // Form
   const [name, setName] = useState("");
@@ -873,14 +906,19 @@ export function LeaveTypeManagementPage() {
     }
   };
 
-  const handleDelete = async (lt: LeaveType) => {
-    if (!confirm(`Deactivate leave type "${lt.name}"?`)) return;
-    try {
-      await apiFetch(`/api/leave-types/${lt.id}`, { method: "DELETE" });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
-    }
+  const handleDelete = (lt: LeaveType) => {
+    setConfirmState({
+      open: true,
+      title: `Deactivate "${lt.name}"?`,
+      message: "This leave type will be hidden from new leave requests. Existing balances will be preserved.",
+      variant: "warning",
+      onConfirm: () => {
+        setConfirmState(null);
+        apiFetch(`/api/leave-types/${lt.id}`, { method: "DELETE" })
+          .then(() => load())
+          .catch((err) => { setError(err instanceof Error ? err.message : "Delete failed."); });
+      },
+    });
   };
 
   return (
@@ -990,6 +1028,15 @@ export function LeaveTypeManagementPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmState?.open ?? false}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        variant={confirmState?.variant ?? "danger"}
+        onConfirm={() => { confirmState?.onConfirm(); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
@@ -1098,12 +1145,12 @@ export function AllLeavePage() {
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-rcc-text-primary">
-                          {r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : "—"}
+                          {r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : ""}
                         </p>
                         <p className="text-xs text-rcc-text-muted font-mono">{r.employee?.employeeId ?? ""}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-rcc-text-secondary">{r.leaveType?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-rcc-text-secondary">{r.leaveType?.name ?? ""}</td>
                     <td className="px-4 py-3 text-rcc-text-secondary">
                       {formatDate(r.startDate)} → {formatDate(r.endDate)}
                     </td>

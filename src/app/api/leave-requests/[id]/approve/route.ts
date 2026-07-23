@@ -51,7 +51,7 @@ export async function POST(
     const requiredPerm = level === 1 ? "leave.approve_l1" : "leave.approve_l2";
     if (!user.isSystem && !user.permissions.includes(requiredPerm)) {
       return NextResponse.json(
-        { error: "Forbidden — insufficient permissions" },
+        { error: "Forbidden - insufficient permissions" },
         { status: 403 }
       );
     }

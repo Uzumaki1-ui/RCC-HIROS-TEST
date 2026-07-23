@@ -171,7 +171,7 @@ function TimeAttendanceWidget() {
       if (loc.lat !== undefined) { body.lat = loc.lat; body.lng = loc.lng; }
       const result = await apiFetch<{ attendance: TodayAttendance; premises?: { onPremise: boolean | null; distance: number | null } }>("/api/attendance", { method: "POST", body: JSON.stringify(body) });
       setToday(result.attendance);
-      if (result.premises && result.premises.onPremise === false) setError(`Off premise — ${Math.round(result.premises.distance ?? 0)}m from ${premises?.name ?? "school"}.`);
+      if (result.premises && result.premises.onPremise === false) setError(`Off premise. ${Math.round(result.premises.distance ?? 0)}m from ${premises?.name ?? "school"}.`);
     } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
     finally { setActionLoading(false); }
   }

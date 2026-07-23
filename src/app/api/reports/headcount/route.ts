@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       if (userGroup) {
         if (effectiveGroupCode && effectiveGroupCode !== userGroup.code) {
           return NextResponse.json(
-            { error: "Forbidden — you can only view your own group" },
+            { error: "Forbidden - you can only view your own group" },
             { status: 403 }
           );
         }

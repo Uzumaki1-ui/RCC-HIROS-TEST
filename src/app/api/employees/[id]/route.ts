@@ -165,7 +165,7 @@ export async function PATCH(
 
     if (!isAdminEdit && !isEditAll && !isSelfEdit) {
       return NextResponse.json(
-        { error: "Forbidden — insufficient permissions" },
+        { error: "Forbidden: insufficient permissions" },
         { status: 403 }
       );
     }

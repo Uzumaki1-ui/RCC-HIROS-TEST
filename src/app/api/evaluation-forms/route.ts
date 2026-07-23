@@ -47,7 +47,7 @@ const DEFAULT_CRITERIA: {
   { category: "V. Professional Qualities", description: "Respects students' opinions." },
   { category: "V. Professional Qualities", description: "Maintains good working relations with students." },
   { category: "V. Professional Qualities", description: "Is fair in giving grades." },
-  { category: "V. Professional Qualities", description: "Is firm and consistent — strict but reasonable in dealing with students." },
+  { category: "V. Professional Qualities", description: "Is firm and consistent - strict but reasonable in dealing with students." },
   { category: "V. Professional Qualities", description: "Returns corrected test papers and projects promptly." },
   // VI. Personal Qualities (3 items)
   { category: "VI. Personal Qualities", description: "Dresses neatly and appropriately." },

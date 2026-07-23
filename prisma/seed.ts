@@ -1070,7 +1070,7 @@ async function main() {
   console.log("• Creating evaluation periods...");
   await prisma.evaluationPeriod.deleteMany({});
 
-  // Closed/archived period: 2nd Semester 2025 (Nov 2025 - Mar 2026)
+  // Closed period: 2nd Semester 2025 (Nov 2025 - Mar 2026)
   const closedPeriod = await prisma.evaluationPeriod.create({
     data: {
       id: "eval-period-2s-2025",
@@ -1078,7 +1078,7 @@ async function main() {
       name: "2nd Semester 2025",
       startDate: new Date("2025-11-01T00:00:00.000Z"),
       endDate: new Date("2026-03-31T00:00:00.000Z"),
-      status: "archived",
+      status: "closed",
     },
   });
 

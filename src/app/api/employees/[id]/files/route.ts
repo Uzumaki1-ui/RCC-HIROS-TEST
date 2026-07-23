@@ -88,7 +88,7 @@ export async function POST(
     const isAdmin = auth.user.permissions.includes("profiling.edit") || auth.user.permissions.includes("profile.editAll");
     if (!isAdmin && !isSelfEdit) {
       return NextResponse.json(
-        { error: "Forbidden — insufficient permissions" },
+        { error: "Forbidden - insufficient permissions" },
         { status: 403 }
       );
     }

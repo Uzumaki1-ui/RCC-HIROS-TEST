@@ -56,7 +56,7 @@ export async function PATCH(
       data.endDate = d;
     }
     if (status !== undefined) {
-      if (!["open", "closed", "archived"].includes(status)) {
+      if (!["open", "closed"].includes(status)) {
         return NextResponse.json(
           { error: "Invalid status value" },
           { status: 400 }
@@ -125,29 +125,26 @@ export async function DELETE(
       );
     }
 
-    if (period.status === "archived") {
+    if (period.status === "open") {
       return NextResponse.json(
-        { error: "Period is already archived." },
+        { error: "Cannot delete an open period. Close it first." },
         { status: 400 }
       );
     }
 
-    const updated = await db.evaluationPeriod.update({
-      where: { id },
-      data: { status: "archived" },
-    });
+    await db.evaluationPeriod.delete({ where: { id } });
 
     await db.auditLog.create({
       data: {
         userId: auth.user.id,
-        action: "Archive Evaluation Period",
+        action: "Delete Evaluation Period",
         entity: "EvaluationPeriod",
         entityId: id,
         metadata: JSON.stringify({ name: period.name, previousStatus: period.status }),
       },
     });
 
-    return NextResponse.json({ period: updated });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[API /evaluation-periods/[id] DELETE] Error:", error);
     return NextResponse.json(

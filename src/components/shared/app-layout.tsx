@@ -44,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <div className="px-4 py-3 border-b border-rcc-border">
                     <p className="text-sm font-medium text-rcc-text-primary">{user?.name ?? ""}</p>
                     <p className="text-xs text-rcc-text-muted">{user?.email ?? ""}</p>
-                    <p className="text-xs text-rcc-text-muted mt-0.5">Role: {user?.roleName ?? "—"}</p>
+                    <p className="text-xs text-rcc-text-muted mt-0.5">Role: {user?.roleName ?? ""}</p>
                   </div>
                   <div className="p-1">
                     <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rcc-error hover:bg-red-50 rounded-md transition-colors">

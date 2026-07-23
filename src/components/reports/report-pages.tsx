@@ -488,14 +488,14 @@ function HeadcountReport({ canExport }: { canExport: boolean }) {
                         {e.firstName} {e.middleName ? e.middleName + " " : ""}{e.lastName}
                       </td>
                       <td className="px-4 py-3 text-rcc-text-secondary truncate max-w-xs">{e.email}</td>
-                      <td className="px-4 py-3 text-rcc-text-secondary">{e.gender ?? "—"}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary">{e.gender ?? ""}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rcc-accent/10 text-rcc-accent border border-rcc-accent/20">
                           {e.contractType}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-rcc-text-secondary">
-                        {e.hireDate ? new Date(e.hireDate).toLocaleDateString() : "—"}
+                        {e.hireDate ? new Date(e.hireDate).toLocaleDateString() : ""}
                       </td>
                       <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{e.certificateCount}</td>
                     </tr>

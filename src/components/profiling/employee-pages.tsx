@@ -14,10 +14,19 @@ import {
   usePagination,
   PaginationControls,
 } from "@/components/shared/table-pagination-v2";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 // ═══════════════════════════════════════════════════════════════
 // Types
 // ═══════════════════════════════════════════════════════════════
+
+interface ConfirmDialogState {
+  open: boolean;
+  title: string;
+  message: string;
+  variant: "danger" | "warning";
+  onConfirm: () => void;
+}
 
 interface GroupBrief { id: string; name: string; code: string; }
 interface RoleBrief { id: string; name: string; }
@@ -277,10 +286,10 @@ export function EmployeeListPage() {
                       {emp.employeeId}
                     </td>
                     <td className="px-4 py-3 text-rcc-text-secondary">
-                      {emp.groupName ?? <span className="text-rcc-text-muted">—</span>}
+                      {emp.groupName ?? <span className="text-rcc-text-muted">-</span>}
                     </td>
                     <td className="px-4 py-3 text-rcc-text-secondary">
-                      {emp.roleName ?? <span className="text-rcc-text-muted">—</span>}
+                      {emp.roleName ?? <span className="text-rcc-text-muted">-</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rcc-accent/10 text-rcc-accent border border-rcc-accent/20">
@@ -502,7 +511,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
           </Field>
           <Field label="Gender">
             <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
-              <option value="">—</option>
+              <option value="">-</option>
               {GENDER_OPTIONS.map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
@@ -521,7 +530,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Field label="Group">
             <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={inputClass}>
-              <option value="">— Unassigned —</option>
+              <option value="">Unassigned</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>{g.name} ({g.code})</option>
               ))}
@@ -529,7 +538,7 @@ export function EmployeeFormPage({ mode, employeeId }: { mode: "create" | "edit"
           </Field>
           <Field label="Role">
             <select value={roleId} onChange={(e) => setRoleId(e.target.value)} className={inputClass}>
-              <option value="">— Unassigned —</option>
+              <option value="">Unassigned</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
@@ -662,6 +671,8 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   const [uploading, setUploading] = useState(false);
   const [fileDesc, setFileDesc] = useState("");
 
+  const [confirmState, setConfirmState] = useState<ConfirmDialogState | null>(null);
+
   // Inline edit mode
   const canSelfEdit = employeeId === user?.id && has("profile.selfEdit");
   const canInlineEdit = canSelfEdit;
@@ -734,14 +745,22 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
     }
   };
 
-  const handleDeleteFile = async (file: EmployeeFile) => {
-    if (!confirm(`Delete "${file.originalName}"?`)) return;
-    try {
-      await apiFetch(`/api/employees/${employeeId}/files/${file.id}`, { method: "DELETE" });
-      loadEmployee();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
-    }
+  const handleDeleteFile = (file: EmployeeFile) => {
+    setConfirmState({
+      open: true,
+      title: `Delete "${file.originalName}"?`,
+      message: "This file will be permanently removed. This action cannot be undone.",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await apiFetch(`/api/employees/${employeeId}/files/${file.id}`, { method: "DELETE" });
+          loadEmployee();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Delete failed.");
+        }
+      },
+    });
   };
 
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -790,14 +809,22 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
     }
   };
 
-  const handleDeleteCert = async (certId: string, title: string) => {
-    if (!confirm(`Delete certificate "${title}"?`)) return;
-    try {
-      await apiFetch(`/api/employees/${employeeId}/certificates/${certId}`, { method: "DELETE" });
-      loadEmployee();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
-    }
+  const handleDeleteCert = (certId: string, title: string) => {
+    setConfirmState({
+      open: true,
+      title: `Delete certificate "${title}"?`,
+      message: "This certificate will be permanently removed. This action cannot be undone.",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await apiFetch(`/api/employees/${employeeId}/certificates/${certId}`, { method: "DELETE" });
+          loadEmployee();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Delete failed.");
+        }
+      },
+    });
   };
 
   // ── Inline edit ──────────────────────────────────────────────
@@ -1267,13 +1294,21 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      {confirmState && (
+        <ConfirmDialog
+          open={confirmState.open}
+          title={confirmState.title}
+          message={confirmState.message}
+          variant={confirmState.variant}
+          onConfirm={confirmState.onConfirm}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }
-
-// ───────────────────────────────────────────────────────────────
-// Helpers
-// ───────────────────────────────────────────────────────────────
 
 function Building2Icon({ className }: { className?: string }) {
   return <Briefcase className={className} />;
@@ -1293,7 +1328,7 @@ function InfoItem({
       <Icon className="h-4 w-4 text-rcc-text-muted mt-0.5 shrink-0" />
       <div className="min-w-0">
         <dt className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide">{label}</dt>
-        <dd className="text-sm text-rcc-text-primary mt-0.5 break-words">{value || <span className="text-rcc-text-muted">—</span>}</dd>
+        <dd className="text-sm text-rcc-text-primary mt-0.5 break-words">{value || <span className="text-rcc-text-muted">-</span>}</dd>
       </div>
     </div>
   );
@@ -1343,7 +1378,7 @@ function EditField({
         {type === "select" ? (
           <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40">
             {["", "Male", "Female"].map((o) => (
-              <option key={o} value={o}>{o || "—"}</option>
+              <option key={o} value={o}>{o || "-"}</option>
             ))}
           </select>
         ) : (
@@ -1379,7 +1414,7 @@ function SelectField({
         <dt className="text-xs font-semibold text-rcc-text-muted uppercase tracking-wide mb-1">{label}</dt>
         <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40">
           {options.map((o) => (
-            <option key={o} value={o}>{o || "—"}</option>
+            <option key={o} value={o}>{o || "-"}</option>
           ))}
         </select>
       </div>
