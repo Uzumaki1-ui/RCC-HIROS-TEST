@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import {
-  Plus, ArrowLeft, AlertTriangle,
+  Plus, ArrowLeft, AlertTriangle, Pencil,
   CheckCircle2, FileText, Info, Trash2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -113,18 +113,26 @@ export function EvaluationFormsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [retentionMonths, setRetentionMonths] = useState(12);
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; variant: "danger" | "warning"; onConfirm: () => void } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [p, f] = await Promise.all([
+      const [p, f, r] = await Promise.all([
         apiFetch<{ periods: EvalPeriod[] }>("/api/evaluation-periods"),
         apiFetch<{ forms: EvalForm[] }>("/api/evaluation-forms"),
+        apiFetch<{ retentionMonths: number }>("/api/evaluations/cleanup").catch(() => ({ retentionMonths: 12 })),
       ]);
       setPeriods(p.periods ?? []);
       setForms(f.forms ?? []);
+      setRetentionMonths(r.retentionMonths ?? 12);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load.");
     } finally {
@@ -204,20 +212,56 @@ export function EvaluationFormsPage() {
     });
   };
 
-  const handleDeletePeriod = async (periodId: string, periodName: string) => {
+  const handleRenamePeriod = async (periodId: string) => {
+    if (!editName.trim()) return setError("Period name is required.");
+    setError(null);
+    try {
+      await apiFetch(`/api/evaluation-periods/${periodId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      setEditingPeriodId(null);
+      setEditName("");
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Rename failed.");
+    }
+  };
+
+  const handleSaveRetention = async () => {
+    setRetentionSaving(true);
+    setError(null);
+    try {
+      await apiFetch("/api/evaluations/cleanup", {
+        method: "PATCH",
+        body: JSON.stringify({ retentionMonths }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save retention setting.");
+    } finally {
+      setRetentionSaving(false);
+    }
+  };
+
+  const handleCleanup = async () => {
     setConfirmState({
       open: true,
-      title: `Delete "${periodName}"?`,
-      message: "This will permanently delete the evaluation period. This cannot be undone.",
+      title: "Run Cleanup",
+      message: `Delete all evaluations older than ${retentionMonths} months? This cannot be undone.`,
       variant: "danger",
       onConfirm: async () => {
         setConfirmState(null);
+        setCleaningUp(true);
+        setCleanupResult(null);
         setError(null);
         try {
-          await apiFetch(`/api/evaluation-periods/${periodId}`, { method: "DELETE" });
+          const result = await apiFetch<{ deletedEvaluations: number; retentionMonths: number }>("/api/evaluations/cleanup", { method: "POST" });
+          setCleanupResult(`Deleted ${result.deletedEvaluations} evaluation(s) older than ${result.retentionMonths} months.`);
           load();
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Delete failed.");
+          setError(err instanceof Error ? err.message : "Cleanup failed.");
+        } finally {
+          setCleaningUp(false);
         }
       },
     });
@@ -299,7 +343,47 @@ export function EvaluationFormsPage() {
             <div key={p.id} className="bg-rcc-surface rounded-lg border border-rcc-border p-6 flex items-center justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-rcc-text-primary">{p.name}</h3>
+                  {editingPeriodId === p.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="px-2 py-1 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRenamePeriod(p.id);
+                          if (e.key === "Escape") { setEditingPeriodId(null); setEditName(""); }
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleRenamePeriod(p.id)}
+                        disabled={!editName.trim()}
+                        className="px-2 py-1 rounded-md text-xs font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setEditingPeriodId(null); setEditName(""); }}
+                        className="px-2 py-1 rounded-md text-xs font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="text-lg font-semibold text-rcc-text-primary">{p.name}</h3>
+                      {has("evaluation.manage_forms") && (
+                        <button
+                          onClick={() => { setEditingPeriodId(p.id); setEditName(p.name); }}
+                          className="text-rcc-text-muted hover:text-rcc-primary transition-colors"
+                          title="Rename period"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     p.status === "open" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
                   }`}>
@@ -328,16 +412,6 @@ export function EvaluationFormsPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {has("evaluation.manage_forms") && (
-                  <button
-                    onClick={() => handleDeletePeriod(p.id, p.name)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-                    title="Delete this period"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete
-                  </button>
-                )}
                 <button
                   onClick={() => handleToggle(p)}
                   disabled={togglingId === p.id}
@@ -353,6 +427,43 @@ export function EvaluationFormsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Retention Policy */}
+      {has("evaluation.manage_forms") && (
+        <div className="bg-rcc-surface rounded-lg border border-rcc-border p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-rcc-text-primary">Retention Policy</h3>
+          <p className="text-xs text-rcc-text-muted">Automatically delete evaluations after a set number of months from their submission date.</p>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-rcc-text-secondary">Delete evaluations older than</span>
+            <input
+              type="number"
+              min="1"
+              max="120"
+              value={retentionMonths}
+              onChange={(e) => setRetentionMonths(Number(e.target.value))}
+              className="w-20 px-2 py-1 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary text-center"
+            />
+            <span className="text-sm text-rcc-text-secondary">months</span>
+            <button
+              onClick={handleSaveRetention}
+              disabled={retentionSaving}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 disabled:opacity-50"
+            >
+              {retentionSaving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={handleCleanup}
+              disabled={cleaningUp}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg disabled:opacity-50"
+            >
+              {cleaningUp ? "Cleaning..." : "Run Cleanup Now"}
+            </button>
+          </div>
+          {cleanupResult && (
+            <p className="text-xs text-green-700 font-medium">{cleanupResult}</p>
+          )}
         </div>
       )}
 
