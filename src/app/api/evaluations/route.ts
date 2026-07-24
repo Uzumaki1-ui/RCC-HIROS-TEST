@@ -49,6 +49,8 @@ function serializeEvaluation(ev: any) {
           name: `${ev.employee.firstName} ${ev.employee.lastName}`.trim(),
           employeeId: ev.employee.employeeId,
           groupId: ev.employee.groupId,
+          group: ev.employee.group ? { name: ev.employee.group.name } : null,
+          role: ev.employee.role ? { name: ev.employee.role.name } : null,
         }
       : null,
     status: ev.status,

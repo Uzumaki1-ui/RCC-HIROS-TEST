@@ -989,6 +989,8 @@ function ResultsTable({ scope }: { scope: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Evaluation | null>(null);
+  const [groupId, setGroupId] = useState("");
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1007,13 +1009,27 @@ function ResultsTable({ scope }: { scope: string }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (scope === "all") {
+      apiFetch<{ groups: { id: string; name: string }[] }>("/api/groups")
+        .then((data) => setGroups(data.groups ?? []))
+        .catch(() => {});
+    }
+  }, [scope]);
+
   // Build dynamic columns based on scope
   const showEvaluator = scope === "for_me" || scope === "all";
   const showEmployee = scope === "submitted_by_me" || scope === "all";
 
+  // Filter evaluations by group
+  const filtered = useMemo(() => {
+    if (!groupId) return evaluations;
+    return evaluations.filter((ev) => ev.employee?.groupId === groupId);
+  }, [evaluations, groupId]);
+
   // Pagination must be called unconditionally at the top of the component —
   // but we need to call it before any early return. The hook above is already unconditional.
-  const { currentData, controls } = usePagination(evaluations, { defaultPageSize: 15 });
+  const { currentData, controls } = usePagination(filtered, { defaultPageSize: 15 });
 
   return (
     <div className="space-y-4">
@@ -1022,6 +1038,29 @@ function ResultsTable({ scope }: { scope: string }) {
       )}
 
       <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
+        {scope === "all" && groups.length > 0 && (
+          <div className="px-4 py-3 border-b border-rcc-border flex items-center gap-3">
+            <span className="text-sm text-rcc-text-secondary">Filter by Group:</span>
+            <select
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="px-3 py-1.5 bg-rcc-bg border border-rcc-border rounded-md text-sm text-rcc-text-primary focus:outline-none focus:ring-2 focus:ring-rcc-accent/40"
+            >
+              <option value="">All Groups</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            {groupId && (
+              <button
+                onClick={() => setGroupId("")}
+                className="text-xs text-rcc-accent hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-rcc-bg/50 border-b border-rcc-border">
