@@ -102,6 +102,13 @@ export async function DELETE(
     }
 
     // Soft-delete by setting active=false
+    if (!leaveType.active) {
+      return NextResponse.json(
+        { error: "Leave type is already inactive." },
+        { status: 400 }
+      );
+    }
+
     await db.leaveType.update({ where: { id }, data: { active: false } });
 
     await db.auditLog.create({

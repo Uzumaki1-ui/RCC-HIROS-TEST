@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth, requirePermission } from "@/lib/auth-token";
 
 // ═══════════════════════════════════════════════════════════════
-// GET   /api/leave-types   auth only     — list active leave types
+// GET   /api/leave-types   auth only     — list leave types (all for admins, active for others)
 // POST  /api/leave-types   leave.manage_types — create
 // ═══════════════════════════════════════════════════════════════
 
@@ -12,8 +12,10 @@ export async function GET(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.ok) return auth.response;
 
+    const isAdmin = auth.user.isSystem || auth.user.permissions.includes("leave.manage_types");
+
     const leaveTypes = await db.leaveType.findMany({
-      where: { active: true },
+      where: isAdmin ? {} : { active: true },
       orderBy: { name: "asc" },
     });
 

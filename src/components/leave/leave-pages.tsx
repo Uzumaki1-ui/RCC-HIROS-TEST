@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react
 import {
   Plus, Search, Pencil, Trash2, ArrowLeft, Save, AlertTriangle,
   CalendarClock, FileText, Eye, Download, X, Upload, Clock,
-  ThumbsUp, ThumbsDown, Undo2, FileUp,
+  ThumbsUp, ThumbsDown, Undo2, FileUp, ToggleRight, ToggleLeft,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
@@ -834,21 +834,19 @@ export function LeaveTypeManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<LeaveType | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmDialogState | null>(null);
+  const [toggleTarget, setToggleTarget] = useState<LeaveType | null>(null);
+  const [toggling, setToggling] = useState(false);
 
   // Form
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [defaultDays, setDefaultDays] = useState("0");
-  const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Use raw fetch to bypass the active filter on /api/leave-types? — server returns only active.
-      // For management, we still want to see all. The API doesn't currently expose inactive ones via GET,
-      // but here we trust that admins see active ones and PATCH/DELETE work on any id.
       const data = await apiFetch<{ leaveTypes: LeaveType[] }>("/api/leave-types");
       setLeaveTypes(data.leaveTypes ?? []);
     } catch (err) {
@@ -866,7 +864,6 @@ export function LeaveTypeManagementPage() {
     setName("");
     setCode("");
     setDefaultDays("0");
-    setActive(true);
     setEditTarget(null);
     setShowForm(false);
   };
@@ -876,7 +873,6 @@ export function LeaveTypeManagementPage() {
     setName(lt.name);
     setCode(lt.code);
     setDefaultDays(String(lt.defaultDays));
-    setActive(lt.active);
     setShowForm(true);
   };
 
@@ -890,12 +886,11 @@ export function LeaveTypeManagementPage() {
         name: name.trim(),
         code: code.trim().toUpperCase(),
         defaultDays: Number(defaultDays) || 0,
-        active,
       };
       if (editTarget) {
         await apiFetch(`/api/leave-types/${editTarget.id}`, { method: "PATCH", body: JSON.stringify(payload) });
       } else {
-        await apiFetch("/api/leave-types", { method: "POST", body: JSON.stringify(payload) });
+        await apiFetch("/api/leave-types", { method: "POST", body: JSON.stringify({ ...payload, active: true }) });
       }
       resetForm();
       load();
@@ -906,19 +901,29 @@ export function LeaveTypeManagementPage() {
     }
   };
 
-  const handleDelete = (lt: LeaveType) => {
-    setConfirmState({
-      open: true,
-      title: `Deactivate "${lt.name}"?`,
-      message: "This leave type will be hidden from new leave requests. Existing balances will be preserved.",
-      variant: "warning",
-      onConfirm: () => {
-        setConfirmState(null);
-        apiFetch(`/api/leave-types/${lt.id}`, { method: "DELETE" })
-          .then(() => load())
-          .catch((err) => { setError(err instanceof Error ? err.message : "Delete failed."); });
-      },
-    });
+  const handleToggleActive = async () => {
+    if (!toggleTarget) return;
+    setConfirmState(null);
+    setToggling(true);
+    setError(null);
+    try {
+      if (toggleTarget.active) {
+        // Deactivate
+        await apiFetch(`/api/leave-types/${toggleTarget.id}`, { method: "DELETE" });
+      } else {
+        // Re-enable
+        await apiFetch(`/api/leave-types/${toggleTarget.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ active: true }),
+        });
+      }
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Toggle failed.");
+    } finally {
+      setToggling(false);
+      setToggleTarget(null);
+    }
   };
 
   return (
@@ -958,12 +963,6 @@ export function LeaveTypeManagementPage() {
             <Field label="Default Days / Year" hint="Default allocation for new employees.">
               <input type="number" step="0.5" min="0" value={defaultDays} onChange={(e) => setDefaultDays(e.target.value)} className={inputClass} />
             </Field>
-            <div className="flex items-center gap-4 pt-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 rounded border-rcc-border text-rcc-accent focus:ring-rcc-accent/40" />
-                <span className="text-sm text-rcc-text-primary">Active</span>
-              </label>
-            </div>
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={resetForm} disabled={saving} className="px-4 py-2 rounded-md text-sm font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors">
@@ -1016,8 +1015,29 @@ export function LeaveTypeManagementPage() {
                         <button onClick={() => startEdit(lt)} className="p-1.5 rounded-md text-rcc-text-secondary hover:bg-rcc-bg hover:text-rcc-primary transition-colors" title="Edit" aria-label="Edit">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(lt)} className="p-1.5 rounded-md text-rcc-text-secondary hover:bg-red-50 hover:text-rcc-error transition-colors" title="Deactivate" aria-label="Deactivate">
-                          <Trash2 className="h-3.5 w-3.5" />
+                        <button
+                          onClick={() => {
+                            setToggleTarget(lt);
+                            setConfirmState({
+                              open: true,
+                              title: lt.active ? `Deactivate "${lt.name}"?` : `Activate "${lt.name}"?`,
+                              message: lt.active
+                                ? "This leave type will be hidden from new leave requests. Existing balances will be preserved."
+                                : "This leave type will be available for new leave requests.",
+                              variant: lt.active ? "danger" : "warning",
+                              onConfirm: handleToggleActive,
+                            });
+                          }}
+                          disabled={toggling}
+                          className={`p-1.5 rounded-md transition-colors disabled:opacity-50 ${
+                            lt.active
+                              ? "text-rcc-text-secondary hover:bg-red-50 hover:text-rcc-error"
+                              : "text-rcc-text-secondary hover:bg-green-50 hover:text-green-600"
+                          }`}
+                          title={lt.active ? "Deactivate" : "Activate"}
+                          aria-label={lt.active ? "Deactivate" : "Activate"}
+                        >
+                          {lt.active ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
                         </button>
                       </div>
                     </td>
