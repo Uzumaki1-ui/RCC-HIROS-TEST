@@ -833,7 +833,6 @@ export function LeaveTypeManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<LeaveType | null>(null);
-  const [confirmState, setConfirmState] = useState<ConfirmDialogState | null>(null);
   const [toggleTarget, setToggleTarget] = useState<LeaveType | null>(null);
   const [toggling, setToggling] = useState(false);
 
@@ -903,7 +902,6 @@ export function LeaveTypeManagementPage() {
 
   const handleToggleActive = async () => {
     if (!toggleTarget) return;
-    setConfirmState(null);
     setToggling(true);
     setError(null);
     try {
@@ -1016,18 +1014,7 @@ export function LeaveTypeManagementPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={() => {
-                            setToggleTarget(lt);
-                            setConfirmState({
-                              open: true,
-                              title: lt.active ? `Deactivate "${lt.name}"?` : `Activate "${lt.name}"?`,
-                              message: lt.active
-                                ? "This leave type will be hidden from new leave requests. Existing balances will be preserved."
-                                : "This leave type will be available for new leave requests.",
-                              variant: lt.active ? "danger" : "warning",
-                              onConfirm: handleToggleActive,
-                            });
-                          }}
+                          onClick={() => setToggleTarget(lt)}
                           disabled={toggling}
                           className={`p-1.5 rounded-md transition-colors disabled:opacity-50 ${
                             lt.active
@@ -1049,14 +1036,50 @@ export function LeaveTypeManagementPage() {
         </div>
       </div>
 
-      <ConfirmDialog
-        open={confirmState?.open ?? false}
-        title={confirmState?.title ?? ""}
-        message={confirmState?.message ?? ""}
-        variant={confirmState?.variant ?? "danger"}
-        onConfirm={() => { confirmState?.onConfirm(); }}
-        onCancel={() => setConfirmState(null)}
-      />
+      {/* Enable/Disable confirmation modal */}
+      {toggleTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-rcc-surface rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                toggleTarget.active ? "bg-red-50" : "bg-green-50"
+              }`}>
+                <AlertTriangle className={`h-5 w-5 ${toggleTarget.active ? "text-rcc-error" : "text-green-600"}`} />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-rcc-text-primary">
+                  {toggleTarget.active ? "Deactivate" : "Activate"} leave type &ldquo;{toggleTarget.name}&rdquo;?
+                </h3>
+                <p className={`text-sm mt-1 ${toggleTarget.active ? "text-rcc-text-muted" : "text-green-600"}`}>
+                  {toggleTarget.active
+                    ? "This leave type will be hidden from new leave requests. Existing balances will be preserved."
+                    : "This leave type will become available for new leave requests."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setToggleTarget(null)}
+                disabled={toggling}
+                className="px-4 py-2 rounded-md text-sm font-medium border border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleToggleActive}
+                disabled={toggling}
+                className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors disabled:opacity-50 ${
+                  toggleTarget.active
+                    ? "bg-rcc-error text-white hover:bg-red-700"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+              >
+                {toggling ? "Processing..." : toggleTarget.active ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
