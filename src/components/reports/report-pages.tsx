@@ -431,14 +431,17 @@ function HeadcountReport({ canExport }: { canExport: boolean }) {
                   <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Count</th>
                   <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Male</th>
                   <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Female</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Regular</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Contractual</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Part-Time</th>
                   <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Certificates</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rcc-border">
                 {loadingDrill ? (
-                  <tr><td colSpan={5} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
                 ) : rolesData.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-10 text-center text-rcc-text-muted">No roles found in this group.</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-rcc-text-muted">No roles found in this group.</td></tr>
                 ) : (
                   rolesData.map((r) => (
                     <tr
@@ -455,6 +458,9 @@ function HeadcountReport({ canExport }: { canExport: boolean }) {
                       <td className="px-4 py-3 text-rcc-text-secondary tabular-nums font-medium">{r.count}</td>
                       <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{r.male}</td>
                       <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{r.female}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{r.byContractType["Regular"] ?? 0}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{r.byContractType["Contractual"] ?? 0}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{r.byContractType["Part-Time"] ?? 0}</td>
                       <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{r.certificateCount}</td>
                     </tr>
                   ))
@@ -521,6 +527,7 @@ interface AttendanceReportData {
   summary: AttendanceSummary;
   byGroup: AttendanceByGroup[];
   byDate: { date: string; total: number; clockedIn: number; clockedOut: number; noClockIn: number; manuallyEdited: number }[];
+  byEmployee?: { employeeId: string; name: string; total: number; clockedIn: number; clockedOut: number; noClockIn: number; manuallyEdited: number }[];
 }
 
 function AttendanceReport({ canExport }: { canExport: boolean }) {
@@ -532,6 +539,10 @@ function AttendanceReport({ canExport }: { canExport: boolean }) {
   const [dateFrom, setDateFrom] = useState(dateNDaysAgo(29));
   const [dateTo, setDateTo] = useState(todayISO());
   const [groupCode, setGroupCode] = useState("");
+
+  // Drill-down state
+  const [drillGroupId, setDrillGroupId] = useState<string | null>(null);
+  const [drillGroupName, setDrillGroupName] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -568,24 +579,40 @@ function AttendanceReport({ canExport }: { canExport: boolean }) {
   // Detailed records table: flatten byDate for table view with pagination
   const { currentData: pagedDates, controls: dateControls } = usePagination(data?.byDate ?? [], { defaultPageSize: 15 });
 
+  // Employee attendance pagination (drill-down)
+  const { currentData: pagedEmployees, controls: empControls } = usePagination(data?.byEmployee ?? [], { defaultPageSize: 25 });
+
   const handleExportCSV = () => {
     if (!data) return;
     const rows: string[][] = [];
-    rows.push(["Group Code", "Group Name", "Total Records", "Clocked In", "Clocked Out", "No Clock-In", "Manually Edited"]);
-    for (const g of data.byGroup) {
-      rows.push([g.groupCode, g.groupName, String(g.total), String(g.clockedIn), String(g.clockedOut), String(g.noClockIn), String(g.manuallyEdited)]);
+
+    if (drillGroupId && data.byEmployee) {
+      // Drill-down level: export employee attendance
+      rows.push(["Employee ID", "Name", "Total Records", "Clocked In", "Clocked Out", "No Clock-In", "Manually Edited"]);
+      for (const e of data.byEmployee) {
+        rows.push([e.employeeId, e.name, String(e.total), String(e.clockedIn), String(e.clockedOut), String(e.noClockIn), String(e.manuallyEdited)]);
+      }
+    } else {
+      // Top level: export by group + by date
+      rows.push(["Group Code", "Group Name", "Total Records", "Clocked In", "Clocked Out", "No Clock-In", "Manually Edited"]);
+      for (const g of data.byGroup) {
+        rows.push([g.groupCode, g.groupName, String(g.total), String(g.clockedIn), String(g.clockedOut), String(g.noClockIn), String(g.manuallyEdited)]);
+      }
+      rows.push([]);
+      rows.push(["Date", "Total Records", "Clocked In", "Clocked Out", "No Clock-In", "Manually Edited"]);
+      for (const d of data.byDate) {
+        rows.push([d.date, String(d.total), String(d.clockedIn), String(d.clockedOut), String(d.noClockIn), String(d.manuallyEdited)]);
+      }
     }
-    rows.push([]);
-    rows.push(["Date", "Total Records", "Clocked In", "Clocked Out", "No Clock-In", "Manually Edited"]);
-    for (const d of data.byDate) {
-      rows.push([d.date, String(d.total), String(d.clockedIn), String(d.clockedOut), String(d.noClockIn), String(d.manuallyEdited)]);
-    }
+
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `attendance-report-${dateFrom}-to-${dateTo}.csv`;
+    a.download = drillGroupName
+      ? `attendance-${drillGroupName.replace(/\s+/g, "-")}-${dateFrom}-to-${dateTo}.csv`
+      : `attendance-report-${dateFrom}-to-${dateTo}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -613,7 +640,15 @@ function AttendanceReport({ canExport }: { canExport: boolean }) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-rcc-text-secondary mb-1.5">Department</label>
-            <select value={groupCode} onChange={(e) => setGroupCode(e.target.value)} className={inputClass}>
+            <select
+              value={groupCode}
+              onChange={(e) => {
+                setGroupCode(e.target.value);
+                setDrillGroupId(null);
+                setDrillGroupName("");
+              }}
+              className={inputClass}
+            >
               <option value="">All groups</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.code}>{g.name}</option>
@@ -642,103 +677,183 @@ function AttendanceReport({ canExport }: { canExport: boolean }) {
         </div>
       )}
 
-      {/* By Department table */}
-      <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-rcc-border">
-          <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">By Department</h2>
+      {/* Breadcrumb */}
+      {drillGroupId && (
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          <button
+            onClick={() => {
+              setDrillGroupId(null);
+              setDrillGroupName("");
+              setGroupCode("");
+            }}
+            className="font-medium text-rcc-accent hover:underline"
+          >
+            All Departments
+          </button>
+          <ChevronRight className="h-3.5 w-3.5 text-rcc-text-muted" />
+          <span className="font-medium text-rcc-text-primary">{drillGroupName}</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-rcc-bg/50 border-b border-rcc-border">
-              <tr>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Group</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Code</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Total</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked In</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked Out</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">No Clock-In</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Manual Edits</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-rcc-border">
-              {loading ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
-              ) : !data || data.byGroup.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">No data for the selected range.</td></tr>
-              ) : (
-                data.byGroup.map((g) => (
-                  <tr key={g.groupId} className="hover:bg-rcc-bg/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-rcc-text-primary">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-rcc-text-muted" />
-                        {g.groupName}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rcc-accent/10 text-rcc-accent border border-rcc-accent/20 font-mono">
-                        {g.groupCode}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-rcc-text-secondary tabular-nums font-medium">{g.total}</td>
-                    <td className="px-4 py-3 text-green-700 tabular-nums">{g.clockedIn}</td>
-                    <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{g.clockedOut}</td>
-                    <td className="px-4 py-3 text-amber-700 tabular-nums">{g.noClockIn}</td>
-                    <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{g.manuallyEdited}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
 
-      {/* Detailed records (by date) */}
-      <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-rcc-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">Detailed Records (by Date)</h2>
-          <span className="text-xs text-rcc-text-muted">
-            {data ? `${data.byDate.length} day(s)` : ""}
-          </span>
+      {/* By Department table (hide when drilled down) */}
+      {!drillGroupId && (
+        <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-rcc-border">
+            <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">By Department</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-rcc-bg/50 border-b border-rcc-border">
+                <tr>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Group</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Code</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Total</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked In</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked Out</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">No Clock-In</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Manual Edits</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-rcc-border">
+                {loading ? (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
+                ) : !data || data.byGroup.length === 0 ? (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">No data for the selected range.</td></tr>
+                ) : (
+                  data.byGroup.map((g) => (
+                    <tr
+                      key={g.groupId}
+                      onClick={() => {
+                        setDrillGroupId(g.groupId);
+                        setDrillGroupName(g.groupName);
+                        setGroupCode(g.groupCode);
+                      }}
+                      className="cursor-pointer hover:bg-rcc-bg/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-rcc-text-primary">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-rcc-text-muted" />
+                          {g.groupName}
+                          <ChevronRight className="h-3 w-3 text-rcc-text-muted" />
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rcc-accent/10 text-rcc-accent border border-rcc-accent/20 font-mono">
+                          {g.groupCode}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums font-medium">{g.total}</td>
+                      <td className="px-4 py-3 text-green-700 tabular-nums">{g.clockedIn}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{g.clockedOut}</td>
+                      <td className="px-4 py-3 text-amber-700 tabular-nums">{g.noClockIn}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{g.manuallyEdited}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-rcc-bg/50 border-b border-rcc-border">
-              <tr>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Date</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Total</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked In</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked Out</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">No Clock-In</th>
-                <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Manual Edits</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-rcc-border">
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
-              ) : pagedDates.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-rcc-text-muted">No records.</td></tr>
-              ) : (
-                pagedDates.map((d) => (
-                  <tr key={d.date} className="hover:bg-rcc-bg/30 transition-colors">
-                    <td className="px-4 py-3 text-rcc-text-primary font-medium">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-rcc-text-muted" />
-                        {d.date}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-rcc-text-secondary tabular-nums font-medium">{d.total}</td>
-                    <td className="px-4 py-3 text-green-700 tabular-nums">{d.clockedIn}</td>
-                    <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{d.clockedOut}</td>
-                    <td className="px-4 py-3 text-amber-700 tabular-nums">{d.noClockIn}</td>
-                    <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{d.manuallyEdited}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      )}
+
+      {/* Employee attendance table (shown when drilled down) */}
+      {drillGroupId && (
+        <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-rcc-border flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">
+              Employee Attendance — {drillGroupName}
+            </h2>
+            <span className="text-xs text-rcc-text-muted">
+              {data?.byEmployee ? `${data.byEmployee.length} employee(s)` : ""}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-rcc-bg/50 border-b border-rcc-border">
+                <tr>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Employee ID</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Name</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Total</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked In</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked Out</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">No Clock-In</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Manual Edits</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-rcc-border">
+                {loading ? (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
+                ) : pagedEmployees.length === 0 ? (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-rcc-text-muted">No employee records found.</td></tr>
+                ) : (
+                  pagedEmployees.map((e) => (
+                    <tr key={e.employeeId} className="hover:bg-rcc-bg/30 transition-colors">
+                      <td className="px-4 py-3 font-mono text-xs text-rcc-text-secondary">{e.employeeId}</td>
+                      <td className="px-4 py-3 font-medium text-rcc-text-primary">{e.name}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums font-medium">{e.total}</td>
+                      <td className="px-4 py-3 text-green-700 tabular-nums">{e.clockedIn}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{e.clockedOut}</td>
+                      <td className="px-4 py-3 text-amber-700 tabular-nums">{e.noClockIn}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{e.manuallyEdited}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <PaginationControls {...empControls} />
         </div>
-        <PaginationControls {...dateControls} />
-      </div>
+      )}
+
+      {/* Detailed records (by date) — hide when drilled down */}
+      {!drillGroupId && (
+        <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-rcc-border flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">Detailed Records (by Date)</h2>
+            <span className="text-xs text-rcc-text-muted">
+              {data ? `${data.byDate.length} day(s)` : ""}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-rcc-bg/50 border-b border-rcc-border">
+                <tr>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Date</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Total</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked In</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Clocked Out</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">No Clock-In</th>
+                  <th className="text-left text-xs font-semibold text-rcc-text-muted uppercase tracking-wide px-4 py-3">Manual Edits</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-rcc-border">
+                {loading ? (
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-rcc-text-muted">Loading...</td></tr>
+                ) : pagedDates.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-rcc-text-muted">No records.</td></tr>
+                ) : (
+                  pagedDates.map((d) => (
+                    <tr key={d.date} className="hover:bg-rcc-bg/30 transition-colors">
+                      <td className="px-4 py-3 text-rcc-text-primary font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-rcc-text-muted" />
+                          {d.date}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums font-medium">{d.total}</td>
+                      <td className="px-4 py-3 text-green-700 tabular-nums">{d.clockedIn}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{d.clockedOut}</td>
+                      <td className="px-4 py-3 text-amber-700 tabular-nums">{d.noClockIn}</td>
+                      <td className="px-4 py-3 text-rcc-text-secondary tabular-nums">{d.manuallyEdited}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <PaginationControls {...dateControls} />
+        </div>
+      )}
     </div>
   );
 }

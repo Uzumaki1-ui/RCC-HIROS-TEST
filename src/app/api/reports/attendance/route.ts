@@ -121,8 +121,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Build aggregations
-    // byGroup: { groupId, groupName, groupCode, present, absent, late, noClockIn }
-    // byDate:  { date, present, absent, late, noClockIn }
+    // byGroup:   { groupId, groupName, groupCode, total, clockedIn, ... }
+    // byDate:    { date, total, clockedIn, ... }
+    // byEmployee (when groupFilter): { employeeId, name, total, clockedIn, ... }
 
     type Agg = {
       total: number;
@@ -138,6 +139,10 @@ export async function GET(request: NextRequest) {
       groupCode: string;
     }>();
     const byDateMap = new Map<string, Agg & { date: string }>();
+    const byEmployeeMap = new Map<string, Agg & {
+      employeeId: string;
+      name: string;
+    }>();
 
     // Initialize byGroup for all in-scope groups
     const groupsInScope = new Map<string, { id: string; name: string; code: string }>();
@@ -194,6 +199,29 @@ export async function GET(request: NextRequest) {
         if (!r.clockInAt) gAgg.noClockIn += 1;
         if (r.manuallyEdited) gAgg.manuallyEdited += 1;
       }
+
+      // Update byEmployee (only when drilling into a specific group)
+      if (groupFilter) {
+        const empId = r.employeeId;
+        if (!byEmployeeMap.has(empId)) {
+          const emp = employees.find((e) => e.id === empId);
+          byEmployeeMap.set(empId, {
+            employeeId: emp?.employeeId ?? empId,
+            name: emp ? `${emp.firstName} ${emp.lastName}` : empId,
+            total: 0,
+            clockedIn: 0,
+            clockedOut: 0,
+            noClockIn: 0,
+            manuallyEdited: 0,
+          });
+        }
+        const eAgg = byEmployeeMap.get(empId)!;
+        eAgg.total += 1;
+        if (r.clockInAt) eAgg.clockedIn += 1;
+        if (r.clockOutAt) eAgg.clockedOut += 1;
+        if (!r.clockInAt) eAgg.noClockIn += 1;
+        if (r.manuallyEdited) eAgg.manuallyEdited += 1;
+      }
     }
 
     // Sort byDate ascending
@@ -205,6 +233,13 @@ export async function GET(request: NextRequest) {
     const byGroup = Array.from(byGroupMap.values()).sort((a, b) =>
       a.groupName.localeCompare(b.groupName)
     );
+
+    // byEmployee sorted by name (only when drilling into a group)
+    const byEmployee = groupFilter
+      ? Array.from(byEmployeeMap.values()).sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+      : undefined;
 
     // Summary totals
     const summary = {
@@ -226,6 +261,7 @@ export async function GET(request: NextRequest) {
       summary,
       byGroup,
       byDate,
+      ...(byEmployee ? { byEmployee } : {}),
     });
   } catch (error) {
     console.error("[API /reports/attendance] Error:", error);
