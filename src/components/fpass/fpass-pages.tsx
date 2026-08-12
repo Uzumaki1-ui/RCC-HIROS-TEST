@@ -512,6 +512,9 @@ function FpassFormPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-rcc-accent/10 text-rcc-accent text-sm font-semibold tabular-nums">
+            {totalPoints.toFixed(1)} pts
+          </span>
           {onSettings && canManage && (
             <button
               onClick={onSettings}
@@ -520,10 +523,6 @@ function FpassFormPage({
               <Settings className="h-4 w-4" /> Settings
             </button>
           )}
-          <div className="text-right">
-            <p className="text-xs text-rcc-text-muted">Total Points</p>
-            <p className="text-2xl font-bold text-rcc-accent tabular-nums">{totalPoints.toFixed(1)}</p>
-          </div>
           {!readOnly && (
             <button
               onClick={handleSave}
@@ -986,6 +985,7 @@ function FpassFormPage({
 function FpassSettingsPage({ onBack }: { onBack: () => void }) {
   const [groups, setGroups] = useState<GroupBrief[]>([]);
   const [enabledIds, setEnabledIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -1008,8 +1008,8 @@ function FpassSettingsPage({ onBack }: { onBack: () => void }) {
     })();
   }, []);
 
-  const toggleGroup = (groupId: string) => {
-    setEnabledIds((prev) => {
+  const toggleSelect = (groupId: string) => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(groupId)) next.delete(groupId);
       else next.add(groupId);
@@ -1017,14 +1017,33 @@ function FpassSettingsPage({ onBack }: { onBack: () => void }) {
     });
   };
 
-  const allEnabled = groups.length > 0 && groups.every((g) => enabledIds.has(g.id));
+  const allSelected = groups.length > 0 && groups.every((g) => selectedIds.has(g.id));
+  const someSelected = selectedIds.size > 0;
 
-  const toggleAll = () => {
-    if (allEnabled) {
-      setEnabledIds(new Set());
+  const selectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
     } else {
-      setEnabledIds(new Set(groups.map((g) => g.id)));
+      setSelectedIds(new Set(groups.map((g) => g.id)));
     }
+  };
+
+  const enableSelected = () => {
+    setEnabledIds((prev) => {
+      const next = new Set(prev);
+      for (const id of selectedIds) next.add(id);
+      return next;
+    });
+    setSelectedIds(new Set());
+  };
+
+  const disableSelected = () => {
+    setEnabledIds((prev) => {
+      const next = new Set(prev);
+      for (const id of selectedIds) next.delete(id);
+      return next;
+    });
+    setSelectedIds(new Set());
   };
 
   const handleSave = async () => {
@@ -1069,33 +1088,51 @@ function FpassSettingsPage({ onBack }: { onBack: () => void }) {
         </button>
         <div>
           <h1 className="text-xl font-bold text-rcc-text-primary">FPASS Group Settings</h1>
-          <p className="text-sm text-rcc-text-muted mt-0.5">Enable or disable FPASS form access per department.</p>
+          <p className="text-sm text-rcc-text-muted mt-0.5">Select groups, then enable or disable FPASS access for them.</p>
         </div>
       </div>
 
       <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-rcc-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">Department Access</h2>
+        {/* Header with select-all + actions */}
+        <div className="px-4 py-3 border-b border-rcc-border flex items-center justify-between gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={selectAll}
+              className="h-4 w-4 rounded border-rcc-border text-rcc-accent focus:ring-rcc-accent/40"
+            />
+            <span className="text-sm font-semibold text-rcc-text-primary">
+              Department Access
+              {someSelected && <span className="ml-2 text-xs text-rcc-text-muted">({selectedIds.size} selected)</span>}
+            </span>
+          </label>
           <div className="flex items-center gap-2">
             <button
-              onClick={toggleAll}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border transition-colors
-                ${allEnabled
-                  ? "border-red-200 text-red-600 hover:bg-red-50"
-                  : "border-green-200 text-green-600 hover:bg-green-50"}`}
+              onClick={enableSelected}
+              disabled={!someSelected}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold border border-green-200 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {allEnabled ? "Disable All" : "Enable All"}
+              Enable
+            </button>
+            <button
+              onClick={disableSelected}
+              disabled={!someSelected}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Disable
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
+        {/* Group rows */}
         <div className="divide-y divide-rcc-border">
           {groups.map((g) => (
             <label
@@ -1104,8 +1141,8 @@ function FpassSettingsPage({ onBack }: { onBack: () => void }) {
             >
               <input
                 type="checkbox"
-                checked={enabledIds.has(g.id)}
-                onChange={() => toggleGroup(g.id)}
+                checked={selectedIds.has(g.id)}
+                onChange={() => toggleSelect(g.id)}
                 className="h-4 w-4 rounded border-rcc-border text-rcc-accent focus:ring-rcc-accent/40"
               />
               <div className="flex-1">
