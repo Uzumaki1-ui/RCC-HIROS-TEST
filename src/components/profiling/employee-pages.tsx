@@ -673,6 +673,9 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
 
   const [confirmState, setConfirmState] = useState<ConfirmDialogState | null>(null);
 
+  // FPASS enabled state
+  const [fpassEnabled, setFpassEnabled] = useState(false);
+
   // Inline edit mode
   const canSelfEdit = employeeId === user?.id && has("profile.selfEdit");
   const canInlineEdit = canSelfEdit;
@@ -698,6 +701,19 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
   useEffect(() => {
     loadEmployee();
   }, [loadEmployee]);
+
+  // Check FPASS enabled for employee's group
+  useEffect(() => {
+    if (!employee?.groupId) return;
+    (async () => {
+      try {
+        const data = await apiFetch<{ enabledGroupIds: string[] }>("/api/fpass/settings");
+        setFpassEnabled(data.enabledGroupIds?.includes(employee.groupId!) ?? false);
+      } catch {
+        // non-fatal
+      }
+    })();
+  }, [employee?.groupId]);
 
   // Revoke blob URLs when viewer closes
   useEffect(() => {
@@ -981,6 +997,15 @@ export function EmployeeProfilePage({ employeeId }: { employeeId: string }) {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors"
               >
                 <Pencil className="h-4 w-4" /> Edit Profile
+              </button>
+            )}
+            {/* FPASS button: visible if own profile + group enabled, or if admin with fpass.manage */}
+            {((employeeId === user?.id && fpassEnabled) || has("fpass.manage")) && (
+              <button
+                onClick={() => setCurrentPage("fpass", `emp:${employee.id}`)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border border-rcc-accent/30 text-rcc-accent hover:bg-rcc-accent/5 transition-colors"
+              >
+                <FileText className="h-4 w-4" /> FPASS
               </button>
             )}
           </div>

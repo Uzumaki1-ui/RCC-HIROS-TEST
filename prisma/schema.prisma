@@ -105,6 +105,7 @@ model Employee {
   evaluationsMade Evaluation[]           @relation("EvaluationsMade")
   attendanceRecords Attendance[]
   attendanceEdits Attendance[]           @relation("AttendanceEdits")
+  fpassSubmissions FpassSubmission[]
   auditLogs      AuditLog[]
 }
 
@@ -316,6 +317,25 @@ model Attendance {
   editedBy Employee? @relation("AttendanceEdits", fields: [editedById], references: [id])
 
   @@unique([employeeId, date])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FPASS (FACULTY PERFORMANCE APPRAISAL)
+// ═══════════════════════════════════════════════════════════════
+
+model FpassSubmission {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  schoolYear  String
+  formData    String   // JSON blob with all form fields
+  totalPoints Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, schoolYear])
+  @@index([employeeId])
+  @@index([schoolYear])
 }
 
 // ═══════════════════════════════════════════════════════════════

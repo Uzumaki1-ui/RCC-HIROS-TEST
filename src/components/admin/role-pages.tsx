@@ -92,6 +92,9 @@ const PERMISSION_LABELS: Record<string, { label: string; description: string }> 
 
   "groups.view": { label: "View Groups", description: "List groups / departments." },
   "groups.manage": { label: "Manage Groups", description: "Create, edit, and delete groups." },
+
+  "fpass.fill": { label: "Fill FPASS Form", description: "Fill out the Faculty Performance Appraisal form." },
+  "fpass.manage": { label: "Manage FPASS", description: "View all FPASS submissions and manage group access." },
 };
 
 const PERMISSIONS_BY_MODULE: PermissionModule[] = [
@@ -126,6 +129,10 @@ const PERMISSIONS_BY_MODULE: PermissionModule[] = [
   {
     label: "Groups",
     permissions: ["groups.view", "groups.manage"],
+  },
+  {
+    label: "FPASS (Faculty Appraisal)",
+    permissions: ["fpass.fill", "fpass.manage"],
   },
 ].map((m) => ({
   label: m.label,

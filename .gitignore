@@ -21,3 +21,6 @@ uploads/
 # Playwright
 .playwright-mcp/
 *.png
+
+# Reference documents
+*.docx
