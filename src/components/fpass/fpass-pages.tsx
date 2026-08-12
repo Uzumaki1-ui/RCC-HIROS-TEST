@@ -1017,6 +1017,16 @@ function FpassSettingsPage({ onBack }: { onBack: () => void }) {
     });
   };
 
+  const allEnabled = groups.length > 0 && groups.every((g) => enabledIds.has(g.id));
+
+  const toggleAll = () => {
+    if (allEnabled) {
+      setEnabledIds(new Set());
+    } else {
+      setEnabledIds(new Set(groups.map((g) => g.id)));
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -1066,14 +1076,25 @@ function FpassSettingsPage({ onBack }: { onBack: () => void }) {
       <div className="bg-rcc-surface rounded-lg border border-rcc-border overflow-hidden">
         <div className="px-4 py-3 border-b border-rcc-border flex items-center justify-between">
           <h2 className="text-sm font-semibold text-rcc-text-primary uppercase tracking-wide">Department Access</h2>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleAll}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold border transition-colors
+                ${allEnabled
+                  ? "border-red-200 text-red-600 hover:bg-red-50"
+                  : "border-green-200 text-green-600 hover:bg-green-50"}`}
+            >
+              {allEnabled ? "Disable All" : "Enable All"}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-rcc-primary text-rcc-primary-foreground hover:bg-rcc-primary/90 transition-colors disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
         <div className="divide-y divide-rcc-border">
           {groups.map((g) => (
@@ -1162,23 +1183,32 @@ function RadioGroup({
   return (
     <div>
       <p className="text-sm font-medium text-rcc-text-primary mb-2">{label}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {options.map((opt) => (
           <label
             key={opt.value}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm cursor-pointer transition-colors
-              ${value === opt.value ? "border-rcc-accent/40 bg-rcc-accent/5 text-rcc-accent" : "border-rcc-border text-rcc-text-secondary hover:bg-rcc-bg/40"}
+            className={`flex flex-col items-center justify-center px-3 py-2.5 rounded-lg border-2 text-center cursor-pointer transition-all
+              ${value === opt.value
+                ? "border-rcc-accent bg-rcc-accent/8 shadow-sm"
+                : "border-rcc-border hover:border-rcc-accent/30 hover:bg-rcc-bg/50"}
               ${readOnly ? "opacity-70 cursor-default" : ""}`}
           >
-            <input
-              type="radio"
-              name={label}
-              checked={value === opt.value}
-              onChange={() => !readOnly && onChange(opt.value)}
-              disabled={readOnly}
-              className="h-3.5 w-3.5 text-rcc-accent focus:ring-rcc-accent/40"
-            />
-            {opt.label} ({opt.value} pts)
+            <div className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name={label}
+                checked={value === opt.value}
+                onChange={() => !readOnly && onChange(opt.value)}
+                disabled={readOnly}
+                className="h-4 w-4 text-rcc-accent focus:ring-rcc-accent/40"
+              />
+              <span className={`text-sm font-medium ${value === opt.value ? "text-rcc-accent" : "text-rcc-text-primary"}`}>
+                {opt.label}
+              </span>
+            </div>
+            <span className={`text-[11px] mt-1 font-semibold ${value === opt.value ? "text-rcc-accent/70" : "text-rcc-text-muted"}`}>
+              {opt.value} {opt.value === 1 ? "pt" : "pts"}
+            </span>
           </label>
         ))}
       </div>
